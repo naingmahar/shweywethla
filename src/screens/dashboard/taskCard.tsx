@@ -2,6 +2,8 @@ import { PropsWithChildren } from "react";
 import { StyleSheet, Text, View } from "react-native"
 import * as Progress from 'react-native-progress';
 import { Colors } from "../../res/color";
+import { Icon, IconKey, IconsSize } from "../../componet/atoms/icons";
+import { EsNormalText } from "../../componet/atoms/EsText";
 
 const taskCardStyle = StyleSheet.create({
     container:{
@@ -45,23 +47,33 @@ type ITaskCard = {
 }
 
 export const TaskCard = (props:ITaskCard) => {
+    const isComplete = props.current >= props.totalQuestion
     return(
         <View style={taskCardStyle.container}> 
             <View style={taskCardStyle.progressContainer}>
-                <Progress.Circle 
+                {!isComplete && <Progress.Circle 
                     size={50} 
                     progress={props.progress} 
                     showsText={true} 
-                    color={Colors.progressCycle} 
+                    color={Colors.progressCycleGreen} 
                     thickness={5} 
                     formatText={() => {
-                        return `${props.progress * 100}%`
+                        return `${props.progress <= 100 ?(props.progress * 100).toFixed(0):100}%`
                     }}
-                    textStyle={{color:"#585858",fontWeight:"800",fontSize:12}} />
+                    textStyle={{color:"#585858",fontWeight:"800",fontSize:12}} />}
+                {
+                    isComplete && 
+                    <Icon icon={IconKey.success} size={IconsSize.xxxl} className={{color:Colors.infoCard}} />
+                }
             </View>
             <View style={taskCardStyle.infoCOntainer}>
-                <Text style={taskCardStyle.headerText}>{props.header}</Text>
-                <Text style={taskCardStyle.progressText}>Progress {props.current} / {props.totalQuestion} questions</Text>
+                <EsNormalText style={taskCardStyle.headerText}>{props.header}</EsNormalText>
+                {
+                    !isComplete && <Text style={taskCardStyle.progressText}>Progress {props.current||0} / {props.totalQuestion} questions</Text>
+                }
+                {
+                    isComplete && <Text style={taskCardStyle.progressText}>Completed daily task</Text>
+                }
             </View>
         </View>
     )

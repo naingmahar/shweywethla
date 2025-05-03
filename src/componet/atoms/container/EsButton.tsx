@@ -2,10 +2,11 @@ import { ActivityIndicator, StyleSheet, Text, TouchableOpacity } from "react-nat
 import { IEsButtonProps } from "../Types/IButtonProps"
 import { FC } from "react"
 import { ESColor } from "../res/EsColor"
+import { Colors } from "../../../res/color"
 
 export const EsButton:FC<IEsButtonProps> = (props) => {
     return (
-        <TouchableOpacity style={[styles.base,props.isDisible||props.loading?styles.isDisible:{},props.loading?styles.loading:{},props.style]} onPress={props.onPress}>
+        <TouchableOpacity disabled={props.isDisible} style={[styles.base,props.isDisible||props.loading?styles.isDisible:{},props.loading?styles.loading:{},props.style]} onPress={props.onPress}>
             {props.loading && <ActivityIndicator size="small" style={{paddingRight:10}} color="#ffffff" />}
             <Text style={[styles.baseColor,props.textStyle]}>{props.title}</Text>
         </TouchableOpacity>
@@ -29,7 +30,7 @@ const styles = StyleSheet.create({
         margin:10,
         justifyContent:"center",
         alignItems:"center",
-        backgroundColor:ESColor.bgButton
+        backgroundColor:Colors.infoCard
     },
     quizBase:{
         paddingHorizontal:10,
@@ -44,7 +45,7 @@ const styles = StyleSheet.create({
         flexDirection:"row",
     },
     isDisible:{
-        backgroundColor:ESColor.gray
+        backgroundColor:ESColor.darkGray
     },
     baseColor:{
         color:"#fff",

@@ -7,6 +7,10 @@ import { useEffect } from "react"
 import { FlexContainer } from "../../componet/atoms/container/FlexContainer"
 import { BgPhoto } from "../../componet/atoms/Photo/BgPhoto"
 import { MainNav } from "../../nav/main.nav"
+import { useRecoilState } from "recoil"
+import { quizIndexState } from "../../features/recoilState"
+import { GetStoredQuizzes } from "../../features/storage/QuizStore"
+import { EsNormalText, EsSmallText, EsXsText } from "../../componet/atoms/EsText"
 
 type ICategories = {
     categories:ICategory[]
@@ -21,30 +25,39 @@ const styles = StyleSheet.create({
     cotegoryContainer:{marginHorizontal:10,justifyContent:"center",alignItems:"center"},
     imageContainer:{padding:3,borderWidth:1,borderColor:Colors.infoCard,borderRadius:10,marginBottom:5}
 })
-export const Category = (props:{navigate:(route:string,param:{category:string})=>any}) => {
+export const Category = (props:{navigate:(route:string)=>any}) => {
 
     const getAllCategories = useGetAllCategories();
+    const [currentQuizState,setNextQuizState] = useRecoilState(quizIndexState)
     useEffect(()=>{
         getAllCategories.mutate()
     },[])
 
+    const _onPress = (category:string|number) =>{
+        console.log("CATEGORY",category)
+        GetStoredQuizzes(String(category)).then(data=>{
+            setNextQuizState({categoryId:parseInt(String(category)),index:data?.index||0,id:data?.id||0})
+            props.navigate(MainNav.QUIZZES)
+        })
+    }
+
     return(
         <View style={styles.container}>
             <View style={styles.titleContainer}>
-                <Text style={styles.header}>Quiz Categories</Text>
+                <EsNormalText noneBasicStyle style={styles.header}>Quiz Categories</EsNormalText>
                 <FlexContainer isTouchable noneBasicStyle onPress={()=> getAllCategories.mutate()}>
-                    <Text style={styles.viewAll}>View All</Text>
+                    <EsNormalText noneBasicStyle style={styles.viewAll}>View All</EsNormalText>
                 </FlexContainer>
             </View>
-            <ScrollView horizontal style={styles.categoriesContainer}>
+            <ScrollView showsHorizontalScrollIndicator={false} horizontal style={styles.categoriesContainer}>
                 {
                     (getAllCategories.data||[]).map((row,index)=>(
-                        <FlexContainer isTouchable noneBasicStyle onPress={()=>props.navigate(MainNav.QUIZZES,{category:String(row.id)})} key={index} style={styles.cotegoryContainer}>
+                        <FlexContainer isTouchable noneBasicStyle onPress={()=>_onPress(row.id||0)} key={index} style={styles.cotegoryContainer}>
                             <View style={styles.imageContainer}> 
                                 <BgPhoto uri={row.image} style={{width:50,height:50}} />
                                 {/* <Icon icon={IconKey.english} size={IconsSize.xxxl} className={{color:Colors.progressCycle}} /> */}
                             </View>
-                            <Text>{row.name}</Text>
+                            <EsXsText noneBasicStyle>{row.name}</EsXsText>
                         </FlexContainer>
                     ))
                 }

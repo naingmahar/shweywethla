@@ -40,6 +40,12 @@ export enum IconKey {
     lessThan="LessIcon",
     pending="PendingIcon",
     english="LanguageOutline",
+    idCard="IDCardIcon",
+    dob="DOBIcon",
+    document="DocumentIcon",
+    privacyPolicy="LockIcon",
+    chart="ChartBarIcon",
+    presentation="PresentationIcon"
 }
 
 

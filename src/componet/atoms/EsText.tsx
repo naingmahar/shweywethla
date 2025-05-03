@@ -11,6 +11,7 @@ export const BasicText:FC<ITextProps> = (props) => {
                 props.alignCenter ? {textAlign:"center"} :{},
                 props.defaultColor == "white" ? {color:ESColor.textWhite}: {color:ESColor.textBlack},
                 props.color ? {color:props.color} : {},
+                props.isBtnText ? Styles.btnText  :{},
                 props.style
             ]}>{props.children}</Text>
 }
@@ -117,6 +118,7 @@ const Styles = StyleSheet.create({
         textAlign:"center",
         flexWrap: 'wrap',
         flexDirection: 'row',
+        lineHeight:40
     },
     baseNormalHeader:{
         fontSize:20,
@@ -130,7 +132,7 @@ const Styles = StyleSheet.create({
         fontSize:18,
     },
     baseXsHeader:{
-        fontSize:14,
+        fontSize:16,
         fontWeight:"500"
     },
     baseText:{
@@ -149,5 +151,10 @@ const Styles = StyleSheet.create({
     baseCardTitle:{
         fontSize:16,
         fontWeight:"400"
+    },
+    btnText:{
+        textAlign:"center",
+        color:"white",
+        fontWeight:"500"
     }
 })

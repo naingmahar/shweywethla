@@ -1,37 +1,45 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 export enum STORAGE_KEY  {
     token = "@token",
     shop = "@shop",
     user = "@us",
     date = "@dt",
-    customer ="@customer"
+    customer ="@customer",
+    quizInfo="@quizzes"
 }
 
 
 class LocalStorage{
 
-    setItem= (key:STORAGE_KEY,data:string) => {
-        localStorage.setItem(key,data)
+    setItem= (key:STORAGE_KEY|string,data:string) => {
+        AsyncStorage.setItem(key,data)
     }
 
-    getItem= (key:STORAGE_KEY):string|null => {
-        return localStorage.getItem(key)
+    getItem= async (key:STORAGE_KEY|string):Promise<string|null> => {
+        return AsyncStorage.getItem(key)
     }
 
-    removeItem = (key:STORAGE_KEY) => {
-        localStorage.removeItem(key)
+    clearAll = () =>{
+        AsyncStorage.clear()
     }
 
-    setItemByObjectOrArray = (key:STORAGE_KEY,data:{}|[]) => {
+    removeItem = (key:STORAGE_KEY|string) => {
+        AsyncStorage.removeItem(key)
+    }
+
+    setItemByObjectOrArray = (key:STORAGE_KEY|string,data:{}|[]) => {
         let storeData = JSON.stringify(data);
-        localStorage.setItem(key,storeData)
+        AsyncStorage.setItem(key,storeData)
     }
 
-    getItemByObjectOrArray<T>(key:STORAGE_KEY):T|null {
-        let storeData = localStorage.getItem(key)
+    async getItemByObjectOrArray<T>(key:STORAGE_KEY|string):Promise<T|null> {
+        let storeData = await AsyncStorage.getItem(key)
         if(storeData) return JSON.parse(storeData);
         return null;
     }
 }
 
 
+export const Persit = new LocalStorage()
 export const Storage = new LocalStorage()

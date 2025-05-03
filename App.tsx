@@ -35,13 +35,31 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import NetworkLogger from 'react-native-network-logger';
 import { EsModel, IEsModelRefProps } from './src/componet/atoms/modal/Networklogger';
 import { FlexContainer, FlexRowContainer } from './src/componet/atoms/container/FlexContainer';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
+import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { RecoilRoot } from 'recoil';
+import { Provider } from 'jotai';
+import { GetUser } from './src/features/jotai/model/auth';
+import { setHeaderWithToken } from './src/features/apiClient/config/Instance';
+import mobileAds from 'react-native-google-mobile-ads';
 
 type SectionProps = PropsWithChildren<{
   title: string;
 }>;
 
+const asyncStoragePersister = createAsyncStoragePersister({
+  storage: AsyncStorage,
+})
 
-const queryClient = new QueryClient()
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      gcTime: 1000 * 60 * 60 * 24 * 1, // 24 hours or 1 Day
+    },
+  },
+})
 
 function App(): React.JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
@@ -52,23 +70,46 @@ function App(): React.JSX.Element {
 
   const networkLoggerRef = createRef<IEsModelRefProps>()
 
+    const initMobileAds = () => {
+        mobileAds()
+            .initialize()
+            .then(adapterStatuses => {
+                console.log(" Initialization complete!")
+                // Initialization complete!
+            });
+    }
+
   useEffect(()=>{
-    setTimeout(()=>{
-      SplashScreen.hide();
-    },3000) 
+    initMobileAds()
+    GetUser().then(user=>{
+      if(user&&user.token) setHeaderWithToken(user.token||"")
+    })
+      setTimeout(()=>{
+        SplashScreen.hide();
+      },3000)
   },[])
 
   return (
-    <SafeAreaView style={[backgroundStyle,{flex:1,backgroundColor:"#BF9507"}]}>
+    <SafeAreaView style={[backgroundStyle,{flex:1}]}>
       <StatusBar
         barStyle={isDarkMode ? 'light-content' : 'dark-content'}
         backgroundColor={backgroundStyle.backgroundColor}
       />
-      <QueryClientProvider client={queryClient}>
-        <NavigationContainer>
-          <AppRoute />
-        </NavigationContainer>
-      </QueryClientProvider>
+      <PersistQueryClientProvider 
+        client={queryClient}  
+        persistOptions={{ persister: asyncStoragePersister }}
+        onSuccess={()=>{
+          console.log("STORE")
+        }}
+      >
+        {/* <RecoilRoot> */}
+        <Provider>
+          <NavigationContainer>
+            <AppRoute />
+          </NavigationContainer>
+        </Provider>
+        {/* </RecoilRoot> */}
+      </PersistQueryClientProvider>
       <TouchableOpacity style={styles.floatingActionButton} onPress={()=>networkLoggerRef.current?.open()}>
         <FlexRowContainer noneBasicStyle centerAlign>
           <Icon icon={IconKey.clock} className={{color:"white"}} />

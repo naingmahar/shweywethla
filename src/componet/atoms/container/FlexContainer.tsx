@@ -3,6 +3,7 @@ import { IContainerProps } from "../Types/IContinerProps";
 import { Dimensions, ImageBackground, StyleSheet, View ,TouchableOpacity} from "react-native";
 import { SafeAreaView } from "react-native";
 import { KeyboardAvoidingView } from "react-native";
+import { Colors } from "../../../res/color";
 
 
 export const FlexView:FC<IContainerProps> = (props) =>{
@@ -14,6 +15,7 @@ export const FlexView:FC<IContainerProps> = (props) =>{
         props.spaceBetween ? styles.spaceBetween:{},
         props.shadow ? styles.shadow :{},
         props.transparent ? styles.transparent : {},
+        props.useDefaultBtnStyle ? styles.btn : {},
         props.style,
     ]
     if(props.isTouchable) return <TouchableOpacity onPress={props.onPress} style={combineStyles}>{props.children}</TouchableOpacity>
@@ -91,6 +93,13 @@ const  styles = StyleSheet.create({
         shadowRadius: 3.84,
 
         elevation: 5,
+    },
+    btn:{
+        borderRadius:30,
+        textAlign:"center",
+        justifyContent:"center",
+        alignItems:"center",
+        backgroundColor:Colors.progressCycle
     }
 
 })

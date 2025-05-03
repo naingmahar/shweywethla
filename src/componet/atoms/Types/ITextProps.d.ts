@@ -9,5 +9,6 @@ export interface ITextProps {
     alignCenter?:boolean,
     noneBasicStyle?:boolean,
     color?:ESColor,
-    onPress?:()=>any
+    onPress?:()=>any,
+    isBtnText?:boolean
 }

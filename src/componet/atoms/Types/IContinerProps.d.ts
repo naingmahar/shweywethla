@@ -14,4 +14,5 @@ export interface IContainerProps {
     KeyboardAvoidingView?:boolean,
     shadow?:boolean
     transparent?:boolean
+    useDefaultBtnStyle?:boolean
 }

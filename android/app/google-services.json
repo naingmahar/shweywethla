@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "594546464212",
+    "project_id": "shweywethla-49cb4",
+    "storage_bucket": "shweywethla-49cb4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:594546464212:android:df75a59460b1f91e4bf241",
+        "android_client_info": {
+          "package_name": "com.shweywethla"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAYygOC8Z7TU5DNth9lKTaelZNn-R-mPBQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -3,6 +3,7 @@ import { STORAGE_KEY, Storage } from "./localstorage";
 // import { AES, enc } from 'crypto-js';
 // import { ICreateShop } from "../../types/models/ICreateShop";
 import { ILoginData } from "../../types/models/ILogin";
+import { ICreateUser, IEsUser } from "../../types/models/user";
 
 // let SALT =  "ABCD";
 // export const StoreUserInfo = (data:{}) => {
@@ -26,18 +27,13 @@ import { ILoginData } from "../../types/models/ILogin";
 //     }
 // }
 
-export const StoreUserInfo = (data:ILoginData) => {
-    // let secret = moment().format("mmyydd");
-    // Storage.setItem(STORAGE_KEY.date,secret);
-    
-    // let message= JSON.stringify(data);
-    // const cipherText = AES.encrypt(message, SALT+secret);
+export const StoreUserInfo = (data:ICreateUser) => {
     Storage.setItemByObjectOrArray(STORAGE_KEY.user,data);
 }
 
-export const getStoreUserInfo = <T>() => {
+export const getStoreUserInfo = async ():Promise<ICreateUser|null> => {
     try {
-        let data:T|null = Storage.getItemByObjectOrArray(STORAGE_KEY.user)
+        let data:ICreateUser|null = await Storage.getItemByObjectOrArray(STORAGE_KEY.user)
         return data
     } catch (error) {
         return null

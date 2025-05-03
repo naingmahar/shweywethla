@@ -1,4 +1,4 @@
-import IUser  from "@repo/common"
+// import IUser  from "@repo/common"
 import {  ISecurtiyKeyRes } from "../../../types/models/Storage/SecurityKey";
 import { storageInstance } from "../config/Instance";
 import { SECURITY_END_POINT } from "../config/endpoint";
@@ -10,9 +10,9 @@ export const fetchKey = async ():Promise<ISecurtiyKeyRes> => {
 }
 
 
-export const fetchRegister = async (props:IUser):Promise<BasicResponse<IUser>> => {
-    return await storageInstance.post(SECURITY_END_POINT.register,props);
-}
+// export const fetchRegister = async (props:IUser):Promise<BasicResponse<IUser>> => {
+//     return await storageInstance.post(SECURITY_END_POINT.register,props);
+// }
 
 
 export const fetchLogin = async (props:{username:string,password:string}):Promise<BasicResponse<{access_token:string}>> => {

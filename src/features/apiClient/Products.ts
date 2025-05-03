@@ -1,7 +1,11 @@
 import { ICategory } from "../../types/models/ICategory";
-import { IPagination } from "../../types/models/IOrderRes";
+// import { IPagination } from "../../types/models/IOrderRes";
+// import { IPagination } from "../../types/models/IOrderRes";
 import { ICreateProduct, IProduct, TProductRes } from "../../types/models/IProducts";
 import { IQuiz } from "../../types/models/IQuiz";
+import { IUser } from "../../types/models/IRegister";
+import { IPagination } from "../../types/models/Storage/BasicResponse";
+import { ICreateUser, IEsUser, TUserRes } from "../../types/models/user";
 import { instance } from "./config/Instance";
 import { END_POINT } from "./config/endpoint";
 
@@ -16,22 +20,31 @@ export const fetchUpdateProduct = (id:string,data:ICreateProduct):Promise<TProdu
 }
 
 
-export const fetchGetAllProducts = async ({shopId,page}:{shopId:number,page?:number}):Promise<IPagination<IProduct>> => {
-    let res = await instance.get(END_POINT.auth_user_products+`/${shopId}?page=${page||1}`);
-    return res.data
-}
+// export const fetchGetAllProducts = async ({shopId,page}:{shopId:number,page?:number}):Promise<IPagination<IProduct>> => {
+//     let res = await instance.get(END_POINT.auth_user_products+`/${shopId}?page=${page||1}`);
+//     return res.data
+// }
 
 export const fetchGetAllCategories = async ():Promise<ICategory[]> => {
     let res = await instance.get(END_POINT.get_all_category);
     return res.data
 }
 
-export const fetchGetQuizzesByCategory = async (category:number):Promise<IQuiz[]> => {
-    let res = await instance.get(`${END_POINT.get_quiz_by_category}?category=${category}`);
+export interface IFetchGetQuizzesByCategory{
+    category:number,skip?:number
+}
+export const fetchGetQuizzesByCategory = async ({category,skip}:IFetchGetQuizzesByCategory):Promise<IPagination<IQuiz[]>> => {
+    let res = await instance.get(`${END_POINT.get_quiz_by_category}?category=${category}&skip=${skip||0}`);
     return res.data
 }
 
 export const fetchAuthUserProducts = async (page?:number):Promise<IProduct[]> => {
     let res = await instance.get(END_POINT.auth_user_products+`?page=${page||1}`);
+    return res.data
+}
+
+
+export const fetchRegister = async (param:ICreateUser):Promise<TUserRes> => {
+    let res = await instance.post(END_POINT.create_user,param);
     return res.data
 }

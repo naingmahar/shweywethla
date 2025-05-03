@@ -1,6 +1,7 @@
 import { atom, selector } from "recoil";
 import { IProduct } from "../../types/models/IProducts";
-import { IAPICreateShop,  ICreateShopState } from "../../types/models/ICreateShop";
+import { IAPICreateShop,  ICreateShop,  ICreateShopState } from "../../types/models/ICreateShop";
+import { ICreateUser } from "../../types/models/user";
 
 const selectedTableRow = atom<{ index: number, data: IProduct } | undefined>({
   key: "SelectedTableRow",
@@ -8,7 +9,7 @@ const selectedTableRow = atom<{ index: number, data: IProduct } | undefined>({
 });
 
 const selectedDynamicTableRow = atom<{ index: number, data: any } | undefined>({
-  key: "SelectedTableRow",
+  key: "SelectedDynamicTableRow",
   default: undefined
 });
 
@@ -21,6 +22,11 @@ export interface IAddShoppingCart {
 const shoppingCartState = atom<IAddShoppingCart[]>({
   key: "ShoppingCart",
   default: []
+});
+
+export const quizIndexState = atom<{index:number,categoryId:number,id:number}>({
+  key: "QuizIndexState",
+  default: {index:0,categoryId:0,id:0}
 });
 
 const getShoppingCartCountState = selector({
@@ -50,11 +56,21 @@ const shopAndProductState = atom<ICreateShopState>({
 });
 
 const shopState = atom<IAPICreateShop>({
-  key: "shop",
+  key: "shops",
   default: undefined
 });
 
 
-export { selectedTableRow, shopAndProductState, shoppingCartState, productDetailsState, getShoppingCartCountState, selectedDynamicTableRow,shopState }
+const coinState = atom<number>({
+  key: "coin",
+  default: 0
+});
+
+const authUserState = atom<ICreateUser|null>({
+  key: "AuthLogin",
+});
+
+
+export { coinState,authUserState,selectedTableRow, shopAndProductState, shoppingCartState, productDetailsState, getShoppingCartCountState, selectedDynamicTableRow,shopState }
 
 

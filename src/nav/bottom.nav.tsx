@@ -6,6 +6,10 @@ import { useLinkBuilder, useTheme } from '@react-navigation/native';
 import { PlatformPressable } from '@react-navigation/elements';
 import { Icon, IconKey, IconsSize } from '../componet/atoms/icons';
 import { Circle } from '../componet/atoms/Shape/Circle';
+import { Setting } from '../screens/Setting';
+import { Colors } from '../res/color';
+import { History } from '../screens/History';
+import { HelperPage } from '../screens/helper';
 
 const Tab = createBottomTabNavigator();
 
@@ -18,7 +22,7 @@ function MyTabBar({ state, descriptors, navigation }:any) {
         const temp = {
             Explore:IconKey.shop,
             Rewards:IconKey.package,
-            History:IconKey.category,
+            History:IconKey.calendar,
             Setting:IconKey.setting
         }
 
@@ -26,7 +30,7 @@ function MyTabBar({ state, descriptors, navigation }:any) {
         return temp[label]
     } 
     return (
-      <View style={{ flexDirection: 'row',backgroundColor:"#81C784" }}>
+      <View style={{ flexDirection: 'row',backgroundColor:Colors.infoCard }}>
         {state.routes.map((route:any, index:number) => {
           const { options } = descriptors[route.key];
           const label =
@@ -92,9 +96,9 @@ export function BottomTabs() {
   return (
     <Tab.Navigator screenOptions={{headerShown:false}}  tabBar={(props) => <MyTabBar {...props} />}>
         <Tab.Screen name="Explore" component={DashboardScreen} />
-        <Tab.Screen name="Rewards" component={RegisterScreen} />
-        <Tab.Screen name="History" component={DashboardScreen} />
-        <Tab.Screen name="Setting" component={RegisterScreen} />
+        {/* <Tab.Screen name="Helper" component={HelperPage} /> */}
+        <Tab.Screen name="History" component={History} />
+        <Tab.Screen name="Setting" component={Setting} />
     </Tab.Navigator>
   );
 }
