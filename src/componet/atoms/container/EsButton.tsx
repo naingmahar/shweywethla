@@ -6,7 +6,7 @@ import { Colors } from "../../../res/color"
 
 export const EsButton:FC<IEsButtonProps> = (props) => {
     return (
-        <TouchableOpacity disabled={props.isDisible} style={[styles.base,props.isDisible||props.loading?styles.isDisible:{},props.loading?styles.loading:{},props.style]} onPress={props.onPress}>
+        <TouchableOpacity disabled={props.isDisible} style={[styles.base,props.style,props.isDisible||props.loading?styles.isDisible:{},props.loading?styles.loading:{}]} onPress={props.onPress}>
             {props.loading && <ActivityIndicator size="small" style={{paddingRight:10}} color="#ffffff" />}
             <Text style={[styles.baseColor,props.textStyle]}>{props.title}</Text>
         </TouchableOpacity>
@@ -15,7 +15,7 @@ export const EsButton:FC<IEsButtonProps> = (props) => {
 
 export const QuizButton:FC<IEsButtonProps> = (props) => {
     return (
-        <TouchableOpacity style={[styles.quizBase,props.isDisible||props.loading?styles.isDisible:{},props.loading?styles.loading:{},props.style]} onPress={props.onPress}>
+        <TouchableOpacity style={[styles.quizBase,props.style,props.isDisible||props.loading?styles.isDisible:{},props.loading?styles.loading:{}]} onPress={props.onPress}>
             {props.loading && <ActivityIndicator size="small" style={{paddingRight:10}}  />}
             <Text style={[styles.quizBaseColor,props.textStyle]}>{props.title}</Text>
         </TouchableOpacity>

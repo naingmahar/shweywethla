@@ -76,12 +76,12 @@ export const RegisterScreen = () => {
                     placeHolder="ဖုန်းနံပါတ်" 
                     icon={IconKey.phone}  />
 
-                <EsTextInput 
+                {/* <EsTextInput 
                     isError={false} 
                     label="" 
                     onChange={setReferral} 
                     placeHolder="Referral Code (ကူညီသူ၏နံပါတ်)" 
-                    icon={IconKey.idCard}  />
+                    icon={IconKey.idCard}  /> */}
 
                 <EsDatePicker
                     isError={false} 
@@ -115,7 +115,7 @@ export const RegisterScreen = () => {
                     loading={createUser.isPending} 
                     onPress={()=>{
                         _onSubmit()
-                    }} title="ပေးပို့မည်"  />
+                    }} title={createUser.isPending?"Please Wait":"ပေးပို့မည်"}  />
 
 
                 

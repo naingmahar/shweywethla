@@ -1,4 +1,4 @@
-import { StyleSheet, Text } from "react-native"
+import { ScrollView, StyleSheet, Text } from "react-native"
 import { BgPhoto } from "../componet/atoms/Photo/BgPhoto"
 import { FlexContainer, FlexRowContainer } from "../componet/atoms/container/FlexContainer"
 import { EsNormalHeader, EsNormalText, EsSmallHeader, EsXsHeader } from "../componet/atoms/EsText"
@@ -9,7 +9,7 @@ import { Icon, IconKey, IconsSize } from "../componet/atoms/icons"
 import { NavigationProp, useNavigation } from "@react-navigation/native"
 import { getVersion } from "react-native-device-info"
 import { Colors } from "../res/color"
-import { Images } from "../res/images"
+import { Images, getUserImage } from "../res/images"
 
 // const logo = "https://lclb.s3.ap-southeast-1.amazonaws.com/operation/1737398123578.png"
 
@@ -46,7 +46,7 @@ const MenuGroup = (props:IMenuGroup) => {
 export const Setting = () => {
     const [getUser] = useAtom(AuthAtom)
     return (
-        <FlexContainer noneBasicStyle style={{backgroundColor:Colors.transprentGreen,height:"100%"}}>
+        <ScrollView  style={{backgroundColor:Colors.transprentGreen}}>
             <FlexContainer centerAlign style={styles.container}>
                 <BgPhoto isNotUrl={true} isOutsitePhoto uri={Images.logo} style={styles.image}  />
                 <EsNormalHeader>{getUser?.name}</EsNormalHeader>
@@ -58,27 +58,36 @@ export const Setting = () => {
                         ]
                     } 
                     /> */}
-                <MenuGroup 
+                {/* <MenuGroup 
                     title="Helper Program" 
                     items={
                         [
                             {icon:IconKey.info,name:"ကူညီသူ အစီစဥ် တွင်ပါဝင်မည်",nav:MainNav.helper},
                         ]
                     } 
-                    />
+                    /> */}
                 <MenuGroup 
                     title="About" 
                     items={
                         [
-                            {icon:IconKey.info,name:"About Us",nav:MainNav.HOME},
+                            {icon:IconKey.info,name:"About Us",nav:MainNav.aboutUs},
                             {icon:IconKey.document,name:"Terms and Conditions",nav:MainNav.TermsAndConditions},
                             {icon:IconKey.privacyPolicy,name:"Privacy Policy",nav:MainNav.privacypolicy},
+                            {icon:IconKey.user,name:"User Data Policy",nav:MainNav.datapolicy},
+                        ]
+                    } 
+                    />
+                <MenuGroup 
+                    title="User Data Management" 
+                    items={
+                        [
+                            {icon:IconKey.info,name:"Delete Account",nav:MainNav.deleteAccount},
                         ]
                     } 
                     />
             </FlexContainer>
-            <EsNormalText style={{textAlign:"center",fontWeight:"600"}}>App Version {getVersion()}</EsNormalText>
-        </FlexContainer>
+            <EsNormalText style={{textAlign:"center",fontWeight:"600",marginBottom:20}}>App Version {getVersion()}</EsNormalText>
+        </ScrollView>
     )
 }
 
@@ -92,7 +101,8 @@ const styles = StyleSheet.create({
         marginRight:10
     },
     container:{
-        paddingTop:50
+        paddingTop:50,
+        paddingBottom:20
     },
     menuContainer:{
         alignItems:"center",

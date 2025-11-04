@@ -2,6 +2,8 @@ import { atom, selector } from "recoil";
 import { IProduct } from "../../types/models/IProducts";
 import { IAPICreateShop,  ICreateShop,  ICreateShopState } from "../../types/models/ICreateShop";
 import { ICreateUser } from "../../types/models/user";
+import { IPagination } from "../../types/models/Storage/BasicResponse";
+import { IQuiz } from "../../types/models/IQuiz";
 
 const selectedTableRow = atom<{ index: number, data: IProduct } | undefined>({
   key: "SelectedTableRow",
@@ -24,9 +26,9 @@ const shoppingCartState = atom<IAddShoppingCart[]>({
   default: []
 });
 
-export const quizIndexState = atom<{index:number,categoryId:number,id:number}>({
+export const quizIndexState = atom<{categoryId:number,index:number,id:number,data?:IPagination<IQuiz[]>}>({
   key: "QuizIndexState",
-  default: {index:0,categoryId:0,id:0}
+  default: {categoryId:0,index:0,id:0}
 });
 
 const getShoppingCartCountState = selector({
@@ -70,7 +72,18 @@ const authUserState = atom<ICreateUser|null>({
   key: "AuthLogin",
 });
 
+export interface ISearchKeyword {
+  id: string,
+  type: string
+}
 
-export { coinState,authUserState,selectedTableRow, shopAndProductState, shoppingCartState, productDetailsState, getShoppingCartCountState, selectedDynamicTableRow,shopState }
+
+const keywordsState = atom<ISearchKeyword[]>({
+  key: "keywordsLogin",
+  default: [],
+});
+
+
+export { keywordsState,coinState,authUserState,selectedTableRow, shopAndProductState, shoppingCartState, productDetailsState, getShoppingCartCountState, selectedDynamicTableRow,shopState }
 
 

@@ -25,7 +25,7 @@ export const DashboardScreen = (props:{navigation:NavigationProp<any>}) => {
     return(
         <View style={{flex:1,backgroundColor:Colors.transprentGreen}}> 
             <InfoCard> 
-                <Header amount={getUser?.id||0} name={getUser?.name||""} member="Gold" logo=""/>
+                <Header gender={getUser?.gender as any} amount={getUser?.id||0} name={getUser?.name||""} member="Gold" logo=""/>
                 {/* <TaskCard 
                     current={4} 
                     header="Daily Tasks" 

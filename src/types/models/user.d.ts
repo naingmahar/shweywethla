@@ -20,7 +20,8 @@ interface IEsUser{
   referral?: string,
   my_referral:string,
   dob?:string,
-  token?:string
+  token?:string,
+  gender?:string,
 }
 
 interface IFindUser{

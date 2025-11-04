@@ -110,11 +110,11 @@ function App(): React.JSX.Element {
         </Provider>
         {/* </RecoilRoot> */}
       </PersistQueryClientProvider>
-      <TouchableOpacity style={styles.floatingActionButton} onPress={()=>networkLoggerRef.current?.open()}>
+      {/* <TouchableOpacity style={styles.floatingActionButton} onPress={()=>networkLoggerRef.current?.open()}>
         <FlexRowContainer noneBasicStyle centerAlign>
           <Icon icon={IconKey.clock} className={{color:"white"}} />
           </FlexRowContainer>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
       <EsModel ref={networkLoggerRef}>
           <FlexContainer noneBasicStyle fullWidth fullFlex style={{backgroundColor:"rgba(180,180,180,0.9)"}}>
               <View style={{height:"5%"}}></View>

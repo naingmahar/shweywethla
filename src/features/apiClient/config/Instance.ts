@@ -2,8 +2,8 @@ import axios from 'axios';
 import { STORAGE_KEY, Storage } from '../../storage/localstorage';
 
 export const instance = axios.create({
-    // baseURL: "https://d17qwwj2uuuc4d.cloudfront.net/",
-    baseURL: "http://192.168.1.129:3000/",
+    baseURL: "https://d17qwwj2uuuc4d.cloudfront.net/",
+    // baseURL: "http://192.168.1.129:3000/",
     timeout: 10000,
 });
 

@@ -4,5 +4,5 @@ import { WebView } from 'react-native-webview';
 
 
 export const TermsAndConditions = () => {
-  return <WebView source={{ uri: 'https://s3.ap-southeast-1.amazonaws.com/visa.uetron.com/tems%26conditions.html' }} style={{ flex: 1 }} />;
+  return <WebView source={{ uri: 'https://shweywethla-49cb4.web.app/tems%26conditions.html' }} style={{ flex: 1 }} />;
 }

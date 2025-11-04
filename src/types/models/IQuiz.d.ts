@@ -6,8 +6,6 @@ export type IQuiz = {
     q2: string
     q3: string
     q4: any
-    q5: any
-    q6: any
     image: string
     isTesting: boolean
   }

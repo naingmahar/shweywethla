@@ -10,6 +10,8 @@ import { Setting } from '../screens/Setting';
 import { Colors } from '../res/color';
 import { History } from '../screens/History';
 import { HelperPage } from '../screens/helper';
+import BookListScreen from '../screens/books';
+import { MainNav } from './main.nav';
 
 const Tab = createBottomTabNavigator();
 
@@ -20,7 +22,7 @@ function MyTabBar({ state, descriptors, navigation }:any) {
   
     const getIcon = (label:any) => {
         const temp = {
-            Explore:IconKey.shop,
+            Books:IconKey.book,
             Rewards:IconKey.package,
             History:IconKey.calendar,
             Setting:IconKey.setting
@@ -95,9 +97,9 @@ function MyTabBar({ state, descriptors, navigation }:any) {
 export function BottomTabs() {
   return (
     <Tab.Navigator screenOptions={{headerShown:false}}  tabBar={(props) => <MyTabBar {...props} />}>
-        <Tab.Screen name="Explore" component={DashboardScreen} />
+        <Tab.Screen name={MainNav.Books} component={BookListScreen} />
         {/* <Tab.Screen name="Helper" component={HelperPage} /> */}
-        <Tab.Screen name="History" component={History} />
+        <Tab.Screen name={MainNav.History} component={History} />
         <Tab.Screen name="Setting" component={Setting} />
     </Tab.Navigator>
   );

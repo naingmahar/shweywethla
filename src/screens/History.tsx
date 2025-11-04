@@ -1,146 +1,165 @@
-import { Dimensions, ScrollView, StyleSheet, Text, View } from "react-native";
-import { FlexContainer, FlexRowContainer } from "../componet/atoms/container/FlexContainer"
-import {
-    LineChart,
-    BarChart,
-    PieChart,
-    ProgressChart,
-    ContributionGraph,
-    StackedBarChart
-  } from "react-native-chart-kit";
-// import { BarChart , CurveType, LineChart, PieChart, PopulationPyramid, RadarChart, } from "react-native-gifted-charts";
+import { useEffect, useState } from 'react';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
+import { getDownloadedBooks } from '../services/downloadedBooksDB';
+import { IBookDownloaded } from '../types/models/IBook';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { MainNav, RootStackParamList } from '../nav/main.nav';
+import { Colors } from '../res/color';
 
-// const data=[ {value:50}, {value:80}, {value:90}, {value:70} ]
+type HistoryScreenProps = NativeStackScreenProps<RootStackParamList, MainNav.History>;
 
-import {Calendar, CalendarList, Agenda} from 'react-native-calendars';
-import moment from "moment";
-import { EsNormalHeader, EsNormalText, EsSmallHeader, EsSmallText, EsTextHeader, EsXsHeader } from "../componet/atoms/EsText";
-import { ESColor } from "../componet/atoms/res/EsColor";
-import { useEffect, useState } from "react";
-import { Colors } from "../res/color";
-import EsDatePicker from "../componet/atoms/EsDatePicker";
-import { Icon, IconKey, IconsSize } from "../componet/atoms/icons";
-import { useGetDashboard } from "../features/query/history/createHistory";
+export const History:React.FC<HistoryScreenProps> = ({navigation}) => {
+  const [downloadedBooks, setDownloadedBooks] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-let data = [
-    {
-      "value": "80",
-      "label": "04-01-2025"
-    },
-    {
-      "value": "110",
-      "label": "05-01-2025"
-    },
-    {
-      "value": "10",
-      "label": "24-1-2025"
-    },
-    {
-      "value": "20",
-      "label": "25-01-2025"
-    },
-    {
-      "value": "118",
-      "label": "11-02-2025"
-    },
-    {
-      "value": "28",
-      "label": "12-02-2025"
+  const fetchDownloadedBooks = async () => {
+    try {
+      const books = await getDownloadedBooks();
+      setDownloadedBooks(books);
+    } catch (error) {
+      console.error("Failed to fetch downloaded books:", error);
+    } finally {
+      setLoading(false);
     }
-  ]
-let markedDates = ():any => {
-    let raw:any = {}
-    data.map(row=>{
-        raw[moment(row.label,"DD-MM-YYYY").format("YYYY-MM-DD")]= {selected: true,selectedColor: parseInt(row.value) >= 20 ? "green" : "red" }
-    })
-    return raw
-}
+  };
 
-console.log(markedDates())
+  useEffect(() => {
+    fetchDownloadedBooks();
+  }, []);
 
-const InfoBlock = (props:{label:string,val:string|number,icon:IconKey}) => {
-    return(
-        <FlexRowContainer style={styles.box}>
-            <Icon size={IconsSize.xxl} icon={props.icon} />
-           <FlexContainer>
-            <EsSmallText>{props.label}</EsSmallText>
-            <EsXsHeader noneBasicStyle>{props.val}</EsXsHeader>
-           </FlexContainer>
-        </FlexRowContainer>
-    )
-}
-export const History = () => {
-    const [clickedDateIndex,setDateIndex] = useState(0)
-    const [selectedDate,setelectedDate] = useState(new Date())
-    const getDashboard = useGetDashboard()
+  const renderItem = ({ item }:{item:IBookDownloaded}) => (
+    <TouchableOpacity
+      style={styles.bookItem}
+      onPress={() => navigation.navigate(MainNav.BookDeatils, item)}
+    >
+        <Image
+        style={styles.bookCover}
+        source={{ uri: item.coverImageUrl[0] }}
+      />
+      <View style={styles.bookInfo}>
+        <Text style={styles.bookTitle}>{item.title}</Text>
+        <Text style={styles.bookAuthor}>{item.author}</Text>
+      </View>
+    </TouchableOpacity>
+  );
 
-    useEffect(()=>{
-        getDashboard.mutate(moment().format("DD-MM-YYYY"))
-    },[])
+  if (loading) {
+    return (
+      <View style={styles.loaderContainer}>
+        <ActivityIndicator size="large" color="#007BFF" />
+        <Text style={styles.loadingText}>Loading downloaded books...</Text>
+      </View>
+    );
+  }
 
-    if(!getDashboard.data){
-        return <View />
-    }
-    return(
-        <ScrollView style={{padding:20,marginBottom:20}}>
-            <EsNormalHeader>Dashboard</EsNormalHeader>
-            <FlexContainer style={styles.infoCard}>
-                <EsSmallText>Total Amount</EsSmallText>
-                <EsTextHeader>🪙 {getDashboard.data.my.totalCoin}</EsTextHeader>
-                <EsNormalText style={{textAlign:"center"}}>This day amount - {getDashboard.data.my.todayCoin} 🪙</EsNormalText>
-            </FlexContainer>
-            <EsDatePicker
-                    isPickup
-                    isError={false} 
-                    label="" 
-                    date={selectedDate||new Date()}
-                    onChange={(date)=>{
-                        console.log(date,moment(date,"x").format("DD-MM-YYYY"))
-                        setelectedDate(date)
-                        getDashboard.mutate(moment(date,"x").format("DD-MM-YYYY"))
-                    }} 
-                    placeHolder="" 
-            />
+  return (
+    <View style={styles.container}>
+      {/* Header View */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Your Downloads</Text>
+      </View>
+      {/* End of Header View */}
 
-            <EsXsHeader color={ESColor.darkGray}>Your Activities</EsXsHeader>
-            <FlexContainer  style={[styles.infoCard,{backgroundColor:"#fff"}]}> 
-                <InfoBlock label="Views Count" val={getDashboard.data.my.todayCount} icon={IconKey.chart} />
-                <InfoBlock label="Income Amount" val={getDashboard.data.my.todayCoin+" 🪙"} icon={IconKey.presentation} />
-                <InfoBlock label="Task Completed" val={String(getDashboard.data.my.taskCompleted)} icon={IconKey.clock} />
-            </FlexContainer> 
-            {/* <EsXsHeader>Referral Activities</EsXsHeader>
-            <FlexContainer  style={[styles.infoCard,{backgroundColor:"#fff"}]}> 
-                <InfoBlock label="Views Count" val="10" icon={IconKey.chart} />
-                <InfoBlock label="Income Amount" val="10 🪙" icon={IconKey.presentation} />
-                <InfoBlock label="Task Completed User" val="200" icon={IconKey.user} />
-            </FlexContainer>  */}
-            
-        {/* <Calendar
-            onDayPress={day => {
-                let dateIndex =data.findIndex(row=>moment(row.label,"DD-MM-YYYY").format("YYYY-MM-DD") == day.dateString)
-                setDateIndex(dateIndex)
-            }}
-            markedDates={markedDates()}
+      {downloadedBooks.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>No books have been downloaded yet.</Text>
+        </View>
+      ) : (
+        <FlatList
+          refreshing={loading}
+          onRefresh={()=>fetchDownloadedBooks()}
+          data={downloadedBooks}
+          renderItem={renderItem}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.listContent}
         />
-            
-        <FlexRowContainer noneBasicStyle style={styles.detailBox}>
-            {clickedDateIndex != -1 && <EsNormalHeader noneBasicStyle>
-                {moment(data[clickedDateIndex].label,"DD-MM-YYYY").format("LL")}
-            </EsNormalHeader>}
-            <EsSmallHeader noneBasicStyle style={{color:parseInt(data[clickedDateIndex].value) >= 20 ? "green" : "red"}}>
-                {data[clickedDateIndex].value}
-            </EsSmallHeader>
-        </FlexRowContainer> */}
-
-
-
-        </ScrollView>
-    )
+      )}
+    </View>
+  );
 }
-
 
 const styles = StyleSheet.create({
-    infoCard:{backgroundColor:Colors.transprentGreen,borderRadius:10,marginVertical:20},
-    box:{padding:8,marginRight:10,alignItems:"center"},
-    detailBox:{justifyContent:"space-between",marginTop:20,backgroundColor:"white",padding:20,borderRadius:10}
-})
+  container: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+  },
+  header: {
+    backgroundColor: Colors.nav,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    marginBottom: 10,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
+    marginTop: 20, // To avoid status bar overlap
+    marginBottom: 5,
+  },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#555',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: 'gray',
+    textAlign: 'center',
+  },
+  listContent: {
+    padding: 10,
+    paddingBottom: 20,
+  },
+  bookItem: {
+    flexDirection: 'row',
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 10,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+  },
+  bookCover: {
+    width: 80,
+    height: 120,
+    borderRadius: 6,
+    marginRight: 15,
+  },
+bookInfo: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  bookTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  bookAuthor: {
+    fontSize: 14,
+    color: '#777',
+    marginTop: 4,
+  },
+});

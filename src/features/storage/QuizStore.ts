@@ -58,7 +58,7 @@ export const QuizStorage = async (category:number,skip?:number)=>{
         console.log("EMPTYYYYYY")
         return  fetchQuizzes({category,skip:0})
     }
-    else if(oldData?.index >= oldData?.data.length -1 || !oldData.data.length ){
+    else if(oldData?.index >= oldData?.data.length  || !oldData.data.length ){
         console.log("NEXTTTTTT",oldData?.index,oldData?.data.length,oldData.id)
         return  fetchQuizzes({category,skip:(( (parseInt(String(oldData.limit))) + (parseInt(String(oldData.skip)))) ||0)})
     }

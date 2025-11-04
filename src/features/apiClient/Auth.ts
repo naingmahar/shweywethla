@@ -15,8 +15,8 @@ export const fetchLogin = async (data:IReqLogin)=> {
     // return instance.get(END_POINT.auth_user_shop);
 }
 
-export const fetchSendOTP = async (data:{email:string}) => {
-    await instance.post(END_POINT.senOTP,data);
+export const fetchDeleteAccount = async (data:{id:number,phone:string}) => {
+    await instance.post(END_POINT.user_delete,data);
 }
 
 export const fetchVerifyOTP = async (data:{email:string,code:string}):Promise<TLoginRes> => {

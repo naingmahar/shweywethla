@@ -19,6 +19,8 @@ import { ESColor } from "../componet/atoms/res/EsColor";
 import LinearGradient from "react-native-linear-gradient";
 import LottieView from "lottie-react-native";
 import TrackPlayer from "react-native-track-player";
+import { setRecordAdWatch } from "../services/recordAdsWatch";
+import { downloadFile } from "../utils/downloadFile";
 
 type IProps = NativeStackScreenProps<RootStackParamList, 'ADS'>;
 
@@ -34,6 +36,9 @@ export const ADS = (props:IProps) => {
 
     const [loaded, setLoaded] = useState(false);
     const [currentQuizInfo,setNextQuizInfo] = useRecoilState(quizIndexState)
+    const [downloading,setDownloading] = useState(false)
+    // const book = props.route.params as IBook;
+    const book = props.route.params;
 
   useEffect(() => {
     console.log('Set loading ');
@@ -54,9 +59,16 @@ export const ADS = (props:IProps) => {
 
     const unsubscribAdClose = rewarded.addAdEventListener(AdEventType.CLOSED,()=>{
       console.log('User close');
-        fetchCreateHistory({coin:1,quiz:String(currentQuizInfo.id)}).then(()=>{
-          props.navigation.popToTop()
-          props.navigation.navigate("Quizzes")
+        setRecordAdWatch().then(()=>{
+        setDownloading(true)
+        downloadFile(book)
+            .then((downloadedBook)=>{
+                if(downloadedBook) {
+                    props.navigation.popToTop()
+                    props.navigation.navigate(MainNav.Reader,downloadedBook)
+                  }
+            })
+          // props.navigation.goBack()
         })
     })  
 
@@ -68,9 +80,15 @@ export const ADS = (props:IProps) => {
     };
   }, []);
 
-  // useEffect(()=>{
-  //   fetchCreateHistory({coin:1,quiz:String(currentQuizInfo.id)})
-  // },[])
+  useEffect(()=>{
+    downloadFile(book)
+    .then((downloadedBook)=>{
+        if(downloadedBook) {
+            props.navigation.popToTop()
+            props.navigation.navigate(MainNav.Reader,downloadedBook)
+          }
+    })
+  },[])
 
   
 
@@ -100,7 +118,7 @@ export const ADS = (props:IProps) => {
 
     useEffect(()=>{
         requestMobileAds()  
-        TrackPlayer.pause()      
+        // TrackPlayer.pause()      
         // initMobileAds()
     },[])
 
@@ -122,23 +140,22 @@ export const ADS = (props:IProps) => {
                     thickness={10} 
                     color={Colors.progressCycle} 
                 /> */}
-                <LottieView
-                  source={require("../assets/coin_wallet.json")}
-                  // colorFilters={[
-                  //   {
-                  //     keypath: "button",
-                  //     color: "#F00000",
-                  //   },
-                  //   {
-                  //     keypath: "Sending Loader",
-                  //     color: "#F00000",
-                  //   },
-                  // ]}
+            { !downloading && <LottieView
+                  source={require("../assets/Books-stack.json")}
                   style={{width: "100%",height:"40%"}}
                   autoPlay
                   loop
                 />
-            <EsSmallHeader color={ESColor.gray}>ကြော်ငြာကြည့်လေ ၀င်ငွေတိုးလေ</EsSmallHeader>
+            }
+            { downloading && <LottieView
+                  source={require("../assets/Downloading.json")}
+                  style={{width: "100%",height:"30%"}}
+                  autoPlay
+                  loop
+                />
+            }
+           { !downloading && <EsSmallHeader color={ESColor.gray}>များများဖတ်လေ ဗဟုသုတတိုးလေ</EsSmallHeader>}
+           { downloading && <EsSmallHeader color={ESColor.gray}>Downloading Book .....</EsSmallHeader>}
         </FlexContainer> ;
       // }
 

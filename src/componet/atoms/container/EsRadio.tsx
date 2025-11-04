@@ -4,6 +4,8 @@ import BouncyCheckbox from "react-native-bouncy-checkbox";
 import { Icon, IconKey } from "../icons";
 import { Colors } from "../../../res/color";
 import { useState } from "react";
+import { EsText } from "../res/EsResText";
+import { EsNormalText } from "../EsText";
 
 interface IEsChooseItem {
     label: string,
@@ -33,7 +35,7 @@ export const EsRadioItem = (props:IEsChooseItem) => {
             // fullWidth
             onPress={() => props.onPress(props.value)}>
             <Icon icon={props.icon} />
-            <Text>{props.label}</Text>
+            <EsNormalText noneBasicStyle>{props.label}</EsNormalText>
         </FlexRowContainer>
     )
 }

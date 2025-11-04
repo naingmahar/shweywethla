@@ -45,7 +45,24 @@ export enum IconKey {
     document="DocumentIcon",
     privacyPolicy="LockIcon",
     chart="ChartBarIcon",
-    presentation="PresentationIcon"
+    presentation="PresentationIcon",
+    book="BookIcon",
+    language="LanguageIcon",
+    isbn="ISBNIcon",
+    author="BookAuthorIcon",
+    publishedDate="PublishedDateIcon",
+    numberOfPages="NumberOfPagesIcon",
+    publisher="PublisherIcon",
+    description="DescriptionIcon",
+    genre="GenreIcon",
+    coverImageUrl="coverImageUrlIcon",
+    // priceTag="PriceTagIcon",  
+    pdf="PdfIcon",  
+    dashboard="DashboardIcon",
+    search="searchIcon",
+    sun="lightModeIcon",
+    moon="nightModeIcon",
+    home="homeIcon",
 }
 
 

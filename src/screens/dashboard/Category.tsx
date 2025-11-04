@@ -34,11 +34,8 @@ export const Category = (props:{navigate:(route:string)=>any}) => {
     },[])
 
     const _onPress = (category:string|number) =>{
-        console.log("CATEGORY",category)
-        GetStoredQuizzes(String(category)).then(data=>{
-            setNextQuizState({categoryId:parseInt(String(category)),index:data?.index||0,id:data?.id||0})
-            props.navigate(MainNav.QUIZZES)
-        })
+        setNextQuizState({categoryId:parseInt(String(category)),index:0,id:0})
+        props.navigate(MainNav.QUIZZES)
     }
 
     return(

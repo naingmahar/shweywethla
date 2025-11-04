@@ -27,13 +27,13 @@ import { ICreateUser, IEsUser } from "../../types/models/user";
 //     }
 // }
 
-export const StoreUserInfo = (data:ICreateUser) => {
+export const StoreUserInfo = (data:{name:string,gender:string,id:string}) => {
     Storage.setItemByObjectOrArray(STORAGE_KEY.user,data);
 }
 
-export const getStoreUserInfo = async ():Promise<ICreateUser|null> => {
+export const getStoreUserInfo = async ():Promise<any|null> => {
     try {
-        let data:ICreateUser|null = await Storage.getItemByObjectOrArray(STORAGE_KEY.user)
+        let data:any|null = await Storage.getItemByObjectOrArray(STORAGE_KEY.user)
         return data
     } catch (error) {
         return null

@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from "react-native"
 import { BgPhoto } from "../../componet/atoms/Photo/BgPhoto"
 import { Colors } from "../../res/color"
 import { RealtimeCoin } from "../../features/realtime/userinfo"
-import { Images } from "../../res/images"
+import { Images, getUserImage } from "../../res/images"
 
 const HeaderStyle = StyleSheet.create({
     container:{
@@ -73,15 +73,14 @@ type IHeader = {
     logo:string,
     name:string,
     amount:number,
-    member:string
+    member:string,
+    gender:any,
 }
 export const Header = (props:IHeader) => {
-    const logo = "https://lclb.s3.ap-southeast-1.amazonaws.com/operation/1737398123578.png"
-    const coin= "https://static.vecteezy.com/system/resources/previews/012/366/544/non_2x/gold-coin-dollar-coin-cryptocurrency-crypto-coin-blockchain-technology-currency-gold-crypto-coin-vector-illustration-background-free-png.png"
     return(
         <View style={HeaderStyle.container}> 
             <View style={HeaderStyle.userInfoContainer}>
-                <BgPhoto isOutsitePhoto uri={Images.logo} isNotUrl style={HeaderStyle.image}  />
+                <BgPhoto isOutsitePhoto uri={getUserImage(props.gender)} isNotUrl style={HeaderStyle.image}  />
                 <View>
                     <Text style={HeaderStyle.name}>{props.name}</Text>
                     {/* <Text style={HeaderStyle.memberTag}>{props.member||"Silver"}</Text> */}

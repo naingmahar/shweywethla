@@ -1,4 +1,5 @@
 export enum END_POINT  {
+    user_delete = "user/delete",
     login = "auth/login",
     logout = "api/v1/logout",
     create_new_product = "/quiz",
