@@ -1,11 +1,13 @@
 package com.shweywethla
 
+import android.os.Bundle
+import android.view.WindowManager
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
 import com.facebook.react.defaults.DefaultReactActivityDelegate
-import android.os.Bundle
 import org.devio.rn.splashscreen.SplashScreen
+
 
 class MainActivity : ReactActivity() {
 
@@ -16,8 +18,13 @@ class MainActivity : ReactActivity() {
   override fun getMainComponentName(): String = "shweywethla"
 
   override fun onCreate(savedInstanceState: Bundle?) {
-    SplashScreen.show(this)
+        SplashScreen.show(this)
     super.onCreate(savedInstanceState)
+    // Set the FLAG_SECURE to prevent screenshots and screen recordings
+    window.setFlags(
+      WindowManager.LayoutParams.FLAG_SECURE,
+      WindowManager.LayoutParams.FLAG_SECURE
+    )
   }
 
   /**
@@ -26,5 +33,4 @@ class MainActivity : ReactActivity() {
    */
   override fun createReactActivityDelegate(): ReactActivityDelegate =
       DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled)
-
 }

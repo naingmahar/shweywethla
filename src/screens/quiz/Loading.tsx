@@ -1,7 +1,6 @@
 import LottieView from "lottie-react-native"
 import { FlexContainer } from "../../componet/atoms/container/FlexContainer"
 import { EsNormalHeader, EsNormalText } from "../../componet/atoms/EsText"
-import { Colors } from "react-native/Libraries/NewAppScreen"
 import { View } from "react-native"
 
 export const QuizLoading = (props:{isLoading:boolean,onPress:()=>any}) => {
@@ -21,7 +20,7 @@ export const QuizLoading = (props:{isLoading:boolean,onPress:()=>any}) => {
                 useDefaultBtnStyle 
                 isTouchable 
                 fullWidth 
-                style={{backgroundColor:Colors.infoCard}}
+                style={{backgroundColor:"#fafafa"}}
                 onPress={props.onPress}>
                 <EsNormalText noneBasicStyle isBtnText>Back To Home</EsNormalText>
             </FlexContainer>

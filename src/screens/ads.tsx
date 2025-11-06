@@ -8,17 +8,9 @@ import { Text, View } from "react-native";
 import { Colors } from "../res/color";
 import { BgPhoto } from "../componet/atoms/Photo/BgPhoto";
 import { EsNormalHeader, EsNormalText, EsSmallHeader, EsTextHeader } from "../componet/atoms/EsText";
-import BouncyCheckbox from "react-native-bouncy-checkbox";
-import { QuizButton } from "../componet/atoms/container/EsButton";
 import mobileAds, { AdEventType, BannerAd, BannerAdSize, MaxAdContentRating, RewardedAd, RewardedAdEventType, TestIds } from 'react-native-google-mobile-ads';
-import * as Progress from 'react-native-progress';
-import { fetchCreateHistory } from "../features/apiClient/History";
-import { useRecoilState } from "recoil";
-import { quizIndexState } from "../features/recoilState";
 import { ESColor } from "../componet/atoms/res/EsColor";
-import LinearGradient from "react-native-linear-gradient";
 import LottieView from "lottie-react-native";
-import TrackPlayer from "react-native-track-player";
 import { setRecordAdWatch } from "../services/recordAdsWatch";
 import { downloadFile } from "../utils/downloadFile";
 
@@ -35,7 +27,6 @@ keywords: ['game','fashion', 'clothing'],
 export const ADS = (props:IProps) => {
 
     const [loaded, setLoaded] = useState(false);
-    const [currentQuizInfo,setNextQuizInfo] = useRecoilState(quizIndexState)
     const [downloading,setDownloading] = useState(false)
     // const book = props.route.params as IBook;
     const book = props.route.params;
@@ -80,15 +71,15 @@ export const ADS = (props:IProps) => {
     };
   }, []);
 
-  useEffect(()=>{
-    downloadFile(book)
-    .then((downloadedBook)=>{
-        if(downloadedBook) {
-            props.navigation.popToTop()
-            props.navigation.navigate(MainNav.Reader,downloadedBook)
-          }
-    })
-  },[])
+  // useEffect(()=>{
+  //   downloadFile(book)
+  //   .then((downloadedBook)=>{
+  //       if(downloadedBook) {
+  //           props.navigation.popToTop()
+  //           props.navigation.navigate(MainNav.Reader,downloadedBook)
+  //         }
+  //   })
+  // },[])
 
   
 
@@ -127,19 +118,8 @@ export const ADS = (props:IProps) => {
         // props.navigation.popToTop()
         // props.navigation.navigate("Quizzes")
     },[loaded])
-
-    
-
-      // No advert ready to show yet
-      // if (!loaded) {
   
         return <FlexContainer fullFlex centerAlign style={{backgroundColor:"rgba(76, 175, 80, 0.2)"}}>
-            {/* <Progress.Circle 
-                    size={100} 
-                    indeterminate
-                    thickness={10} 
-                    color={Colors.progressCycle} 
-                /> */}
             { !downloading && <LottieView
                   source={require("../assets/Books-stack.json")}
                   style={{width: "100%",height:"40%"}}
@@ -157,8 +137,4 @@ export const ADS = (props:IProps) => {
            { !downloading && <EsSmallHeader color={ESColor.gray}>များများဖတ်လေ ဗဟုသုတတိုးလေ</EsSmallHeader>}
            { downloading && <EsSmallHeader color={ESColor.gray}>Downloading Book .....</EsSmallHeader>}
         </FlexContainer> ;
-      // }
-
-
-    return <View />
 }

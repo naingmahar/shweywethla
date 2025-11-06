@@ -6,8 +6,10 @@ import { Colors } from '../res/color';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MainNav, RootStackParamList } from '../nav/main.nav';
 import { useRecoilState } from 'recoil';
-import { ISearchKeyword, keywordsState } from '../features/recoilState';
+// import { ISearchKeyword, keywordsState } from '../features/recoilState';
 import AppUpdateChecker from '../componet/atoms/AppUpdateChecker';
+import { useAtom } from 'jotai';
+import { ISearchKeyword, keywordsState } from '../features/jotai/model/books';
 
 const db = firestore();
 
@@ -17,7 +19,7 @@ type BookDetailsScreenProps = NativeStackScreenProps<RootStackParamList, MainNav
   const Header = ({searchQuery,setSearchQuery}:{searchQuery:string,setSearchQuery: React.Dispatch<React.SetStateAction<string>>}) => {
     return (
       <View style={headerStyles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={Colors.nav} />
+        <StatusBar barStyle="dark-content" backgroundColor={Colors.nav} />
         <Text style={headerStyles.title}>Shwe Ywet Hla</Text>
         <View style={headerStyles.searchContainer}>
           <TextInput
@@ -36,7 +38,8 @@ const BookListScreen = ({ navigation }:BookDetailsScreenProps) => {
   const [categories, setCategories] = useState<string[]>([]);
   const [books, setBooks] = useState<IBook[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [keyWords, setKeyWords] = useRecoilState(keywordsState);
+  // const [keyWords, setKeyWords] = useRecoilState(keywordsState);
+  const [keyWords, setKeyWords] = useAtom(keywordsState);
   const [selectedCategory, setSelectedCategory] = useState('Popular');
   const [filteredBooks, setFilteredBooks] = useState<IBook[]>([]);
   const [loading, setLoading] = useState(true);

@@ -8,7 +8,6 @@
 import React, { createRef, useEffect } from 'react';
 import type {PropsWithChildren} from 'react';
 import {
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -18,21 +17,13 @@ import {
   View,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
 import { Icon, IconKey } from './src/componet/atoms/icons';
 import { BgPhoto, ShapStyles } from './src/componet/atoms/Photo/BgPhoto';
 import SplashScreen from 'react-native-splash-screen';
 import AppRoute from './src/nav/main.nav';
 import { NavigationContainer } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import NetworkLogger from 'react-native-network-logger';
+// import NetworkLogger from 'react-native-network-logger';
 import { EsModel, IEsModelRefProps } from './src/componet/atoms/modal/Networklogger';
 import { FlexContainer, FlexRowContainer } from './src/componet/atoms/container/FlexContainer';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
@@ -43,6 +34,8 @@ import { Provider } from 'jotai';
 import { GetUser } from './src/features/jotai/model/auth';
 import { setHeaderWithToken } from './src/features/apiClient/config/Instance';
 import mobileAds from 'react-native-google-mobile-ads';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Colors } from './src/res/color';
 
 type SectionProps = PropsWithChildren<{
   title: string;
@@ -64,9 +57,9 @@ const queryClient = new QueryClient({
 function App(): React.JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
 
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
-  };
+  // const backgroundStyle = {
+  //   backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
+  // };
 
   const networkLoggerRef = createRef<IEsModelRefProps>()
 
@@ -90,10 +83,10 @@ function App(): React.JSX.Element {
   },[])
 
   return (
-    <SafeAreaView style={[backgroundStyle,{flex:1}]}>
+    <SafeAreaView style={[{flex:1}]}>
       <StatusBar
         barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
+        backgroundColor={ isDarkMode ? Colors.nav : Colors.nav }
       />
       <PersistQueryClientProvider 
         client={queryClient}  
@@ -115,7 +108,7 @@ function App(): React.JSX.Element {
           <Icon icon={IconKey.clock} className={{color:"white"}} />
           </FlexRowContainer>
       </TouchableOpacity> */}
-      <EsModel ref={networkLoggerRef}>
+      {/* <EsModel ref={networkLoggerRef}>
           <FlexContainer noneBasicStyle fullWidth fullFlex style={{backgroundColor:"rgba(180,180,180,0.9)"}}>
               <View style={{height:"5%"}}></View>
               <FlexContainer noneBasicStyle fullFlex  style={{borderRadius:10,backgroundColor:"gray"}}>
@@ -127,7 +120,7 @@ function App(): React.JSX.Element {
                   </FlexContainer>
               </FlexContainer>
           </FlexContainer>
-      </EsModel> 
+      </EsModel>  */}
       
       {/* <Icon icon={IconKey.clock} /> */}
       {/* <BgPhoto style={ShapStyles.circle} uri='https://legacy.reactjs.org/logo-og.png'  /> */}

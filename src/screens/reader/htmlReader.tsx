@@ -11,6 +11,8 @@ import { IEsModelRefProps } from "../../componet/atoms/Types/IModal";
 import { useNavigation } from "@react-navigation/native";
 import { MainNav } from "../../nav/main.nav";
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { BookPlayerView } from "./BookPlayerView";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 const { width, height } = Dimensions.get("window");
 
@@ -81,54 +83,71 @@ const ReaderFlatListWebView = ({path,title}:{path:string,title:string}) => {
 
     const htmlModelRef = createRef<IEsModelRefProps>()
     const navigation = useNavigation()
+    const INJECTED_JAVASCRIPT = `
+        // Target the entire body and apply unselectable styles
+        document.body.style.userSelect = 'none'; 
+        
+        // Ensure cross-browser compatibility, especially for older iOS/Android WebViews
+        document.body.style.webkitUserSelect = 'none'; 
+        document.body.style.webkitTouchCallout = 'none'; // Specifically for iOS pop-up menu
+        
+        true; // Don't forget to return true at the end
+    `;
 
   return (
     <SafeAreaView style={[styles.container, enabled ? {backgroundColor:"#121212"} : {backgroundColor:"#fff"}]}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
         <StatusBar barStyle={enabled ? "light-content" : "dark-content"} backgroundColor={enabled ? "#121212" : "#fff"} />
-        <FlexRowContainer noneBasicStyle fullWidth style={{alignItems:"center",justifyContent:"space-around",paddingHorizontal:10,paddingVertical:10,backgroundColor: enabled? "#121212" :"#fff",borderBottomWidth:1,borderBottomColor:"#ccc"}}>
-          <FlexContainer noneBasicStyle isTouchable onPress={()=>{navigation.navigate(MainNav.HOME as never)}} style={{justifyContent:"flex-start",alignItems:"flex-start"}}>
-            <Icon icon={IconKey.home} size={IconsSize.lg} className={{color: enabled? "#fff" :"#333"}} />
-          </FlexContainer>
-          <FlexContainer noneBasicStyle fullFlex centerAlign>
-                <Text style={{fontSize:20,fontWeight:"500",color: enabled? "#fff" :"#333",textAlign:"center"}} >{title}</Text>
-          </FlexContainer>
-          <FlexContainer noneBasicStyle style={{justifyContent:"flex-end",alignItems:"flex-end"}}>
-              <TouchableOpacity onPress={()=>htmlModelRef.current?.open()} style={{flexDirection:"row",alignItems:"center",justifyContent:"space-around",minWidth:80,height:25,borderColor:"white",borderWidth:1,borderBottomLeftRadius:15,borderTopLeftRadius:15,backgroundColor:Colors.nav}}>
-                  <Text style={{color:"#fff",textAlign:"center",fontSize:10,fontWeight:"500"}}>Page {currentPage + 1} / {pages.length + 1}</Text>
-                  {/* <Icon icon={IconKey.nav} size={15} className={{color:"white"}} /> */}
+        <BookPlayerView 
+          sendCommand={sendCommand}
+          currentPage={currentPage}
+          pages={pages}
+          htmlModelRef={htmlModelRef}
+        >
+          <FlexRowContainer noneBasicStyle fullWidth style={{alignItems:"center",justifyContent:"space-around",paddingHorizontal:10,paddingVertical:10,backgroundColor: enabled? "#121212" :"#fff",borderBottomWidth:1,borderBottomColor:"#ccc"}}>
+            <FlexContainer noneBasicStyle isTouchable onPress={()=>{navigation.navigate(MainNav.HOME as never)}} style={{justifyContent:"flex-start",alignItems:"flex-start"}}>
+              <Icon icon={IconKey.back} size={IconsSize.lg} className={{color: enabled? "#fff" :"#333"}} />
+            </FlexContainer>
+            <FlexContainer noneBasicStyle fullFlex centerAlign>
+                  <Text style={{fontSize:20,fontWeight:"500",color: enabled? "#fff" :"#333",textAlign:"center"}} >{title}</Text>
+            </FlexContainer>
+            <FlexContainer noneBasicStyle style={{justifyContent:"flex-end",alignItems:"flex-end"}}>
+                <TouchableOpacity onPress={()=>htmlModelRef.current?.open()} style={{flexDirection:"row",alignItems:"center",justifyContent:"space-around",minWidth:80,height:25,borderColor:"white",borderWidth:1,borderBottomLeftRadius:15,borderTopLeftRadius:15,backgroundColor:Colors.nav}}>
+                    <Text style={{color:"#fff",textAlign:"center",fontSize:10,fontWeight:"500"}}>Page {currentPage + 1} / {pages.length + 1}</Text>
+                    {/* <Icon icon={IconKey.nav} size={15} className={{color:"white"}} /> */}
+                </TouchableOpacity>
+            </FlexContainer>
+          </FlexRowContainer>
+          <WebView
+              originWhitelist={["*"]}
+              source={{ html: pages[currentPage] }}
+              style={{ width, height }}
+              javaScriptEnabled
+              domStorageEnabled
+              // Inject the JavaScript snippet here
+              injectedJavaScript={INJECTED_JAVASCRIPT}
+          />
+
+          {/* Footer */}
+          {/* <View
+            style={styles.footer}
+            >
+              <TouchableOpacity onPress={() => sendCommand("previous") } disabled={currentPage === 0}>
+                  <Text style={styles.button}>⬅ Prev</Text>
               </TouchableOpacity>
-          </FlexContainer>
-        </FlexRowContainer>
-        <WebView
-            originWhitelist={["*"]}
-            source={{ html: pages[currentPage] }}
-            style={{ width, height, marginBottom:40 }}
-            javaScriptEnabled
-            domStorageEnabled
-        />
 
-        {/* Footer */}
-        <Animated.View
-          style={styles.footer}
-          key={'uniqueKey'}
-          entering={FadeIn.duration(400)}
-          exiting={FadeOut.duration(400)}>
-            <TouchableOpacity onPress={() => sendCommand("previous") } disabled={currentPage === 0}>
-                <Text style={styles.button}>⬅ Prev</Text>
-            </TouchableOpacity>
+              <FlexRowContainer noneBasicStyle centerAlign isTouchable onPress={()=>htmlModelRef.current?.open()}>
+                  <Icon icon={IconKey.setting} size={20} className={{color:"white",marginRight:10}} />
+                  <Text style={styles.pageNumber}>
+                      Setting
+                  </Text>
+              </FlexRowContainer>
 
-            <FlexRowContainer noneBasicStyle centerAlign isTouchable onPress={()=>htmlModelRef.current?.open()}>
-                <Icon icon={IconKey.setting} size={20} className={{color:"white",marginRight:10}} />
-                <Text style={styles.pageNumber}>
-                    Setting
-                </Text>
-            </FlexRowContainer>
-
-            <TouchableOpacity onPress={() => sendCommand("next") } disabled={currentPage === pages.length - 1}>
-                <Text style={styles.button}>Next ➡</Text>
-            </TouchableOpacity>
-        </Animated.View>
-
+              <TouchableOpacity onPress={() => sendCommand("next") } disabled={currentPage === pages.length - 1}>
+                  <Text style={styles.button}>Next ➡</Text>
+              </TouchableOpacity>
+          </View> */}
+      </BookPlayerView>
         <EsModel ref={htmlModelRef}>
           <FlexContainer noneBasicStyle fullWidth fullFlex>
               <View style={{height:"65%",opacity:0}}></View>
@@ -172,6 +191,7 @@ const ReaderFlatListWebView = ({path,title}:{path:string,title:string}) => {
               {/* </FlexContainer> */}
           </FlexContainer>  
         </EsModel>
+      </GestureHandlerRootView>
     </SafeAreaView>
   );
 };

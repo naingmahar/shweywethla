@@ -18,7 +18,6 @@ import { EsButton } from '../componet/atoms/container/EsButton';
 import firestore, { addDoc, collection, or, orderBy, query } from '@react-native-firebase/firestore';
 import { deviceInfo } from '../utils/deviceInfo';
 import { getStoreUserInfo, StoreUserInfo } from '../features/storage/UserStorage';
-import { get } from '@react-native-firebase/database';
 
 interface BookDetailsProps {
   book: IBook;
@@ -205,7 +204,7 @@ const BookDetailsScreen: React.FC<BookDetailsScreenProps> = ({route,navigation})
 
             <EsButton title='Continue'  isDisible={name == "" || gender == ""} style={[styles.pdfButton,{marginTop:30}]} onPress={()=>{
                 register()
-                // navigation.navigate(MainNav.ADS,book)
+                navigation.navigate(MainNav.ADS,book)
             }}>
                 {/* <Text style={styles.pdfButtonText}>Continue</Text> */}
             </EsButton>

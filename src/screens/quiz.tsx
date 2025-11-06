@@ -18,8 +18,8 @@ import { ESColor } from "../componet/atoms/res/EsColor";
 import { Icon, IconKey, IconsSize } from "../componet/atoms/icons";
 import { updateQuizStorageInfo } from "../features/storage/QuizStore";
 import LottieView from "lottie-react-native";
-import { BackgroundMusic } from "../componet/atoms/music";
-import TrackPlayer from "react-native-track-player";
+// import { BackgroundMusic } from "../componet/atoms/music";
+// import TrackPlayer from "react-native-track-player";
 import { IQuiz } from "../types/models/IQuiz";
 import { QuizLoading } from "./quiz/Loading";
 import { CompleteQuiz } from "./quiz/Finished";
@@ -76,7 +76,7 @@ export const Quizzes = (props:IProps) => {
 
     return(
         <FlexView noneBasicStyle fullFlex style={{backgroundColor:"#fafafa"}}>
-            <BackgroundMusic />
+            {/* <BackgroundMusic /> */}
             <BannerAd
                 unitId={adUnitId2}
                 size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
