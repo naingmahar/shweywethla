@@ -1,12 +1,8 @@
 import React, { FC, useEffect, useState } from 'react';
 import {
   StyleSheet,
-  Text,
-  View,
-  SafeAreaView,
-  SectionList,
-  StatusBar,
   FlatList,
+  StatusBar,
 } from 'react-native';
 import { ESCardColor, ESColor } from '../res/EsColor';
 import { FlexContainer } from './FlexContainer';

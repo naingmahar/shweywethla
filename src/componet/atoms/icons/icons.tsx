@@ -1,6 +1,6 @@
 import React from "react"
 import { StyleProp, ViewStyle } from "react-native"
-import { Path, Svg } from "react-native-svg"
+import { Circle, Path, Svg } from "react-native-svg"
 
 interface IProps {
     className: StyleProp<ViewStyle>,
@@ -48,6 +48,8 @@ const ProductOutline = (props: IProps) => (
         <Path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
     </SVGContainer>
 )
+
+
 
 export const ProductIcons = (props: IProps) => {
     if (props.bold) return ProductSolid(props)
@@ -146,6 +148,52 @@ export const PendingIcon = (props: IProps) => {
     )
 }
 
+export const DownloadIcon = (props: IProps) => {
+    return (
+        <SVGContainer {...props}>
+            <Path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />        
+        </SVGContainer>
+    )
+}  
+
+export const MaleIcon = (props: IProps) => {
+    return (
+        <SVGContainer {...props}>
+            {/* Head */}
+            <Circle 
+                cx="12" cy="8" r="5" 
+                strokeLinecap="round" strokeLinejoin="round" 
+                strokeWidth={2} 
+            />
+            {/* Body/Shoulders */}
+            <Path 
+                d="M20 21a8 8 0 00-16 0" 
+                strokeLinecap="round" strokeLinejoin="round" 
+                strokeWidth={2} 
+            />
+        </SVGContainer>
+    );
+};
+
+export const FemaleIcon = (props: IProps) => {
+    return (
+        <SVGContainer {...props}>
+            {/* Head */}
+            <Circle 
+                cx="12" cy="7" r="5" 
+                strokeLinecap="round" strokeLinejoin="round" 
+                strokeWidth={2} 
+            />
+            {/* Body (Dress/A-line shape) */}
+            <Path 
+                d="M17.5 21H6.5L9 13H15L17.5 21Z" 
+                strokeLinecap="round" strokeLinejoin="round" 
+                strokeWidth={2} 
+            />
+        </SVGContainer>
+    );
+};        
+
 export const ChartBarIcon = (props: IProps) => {
     return (
         <SVGContainer {...props}>
@@ -194,6 +242,22 @@ export const DOBIcon = (props: IProps) => {
         </SVGContainer>
     )
 }
+
+export const TouchIcon = (props: IProps) => {
+    return (
+        <SVGContainer {...props}>
+            <Path strokeLinecap="round" strokeLinejoin="round" d="M7.864 4.243A7.5 7.5 0 0 1 19.5 10.5c0 2.92-.556 5.709-1.568 8.268M5.742 6.364A7.465 7.465 0 0 0 4.5 10.5a7.464 7.464 0 0 1-1.15 3.993m1.989 3.559A11.209 11.209 0 0 0 8.25 10.5a3.75 3.75 0 1 1 7.5 0c0 .527-.021 1.049-.064 1.565M12 10.5a14.94 14.94 0 0 1-3.6 9.75m6.633-4.596a18.666 18.666 0 0 1-2.485 5.33" />
+        </SVGContainer>
+    )
+}
+
+export const RocketIcon = (props: IProps) => {
+    return (
+        <SVGContainer {...props}>
+            <Path strokeLinecap="round" strokeLinejoin="round" d="M15.59 14.37a6 6 0 0 1-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 0 0 6.16-12.12A14.98 14.98 0 0 0 9.631 8.41m5.96 5.96a14.926 14.926 0 0 1-5.841 2.58m-.119-8.54a6 6 0 0 0-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 0 0-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 0 1-2.448-2.448 14.9 14.9 0 0 1 .06-.312m-2.24 2.39a4.493 4.493 0 0 0-1.757 4.306 4.493 4.493 0 0 0 4.306-1.758M16.5 9a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Z" />
+        </SVGContainer>)
+}
+
 
 export const DocumentIcon = (props: IProps) => {
     return (
@@ -457,7 +521,7 @@ export const PdfIcon = (props: IProps) => {
 export const DashboardIcon = (props: IProps) => {
     return (
         <SVGContainer {...props}>
-            <Path strokeLinecap="round" strokeLinejoin="round" d="M3 3v1.5M3 21v-6m0 0l2.77-2.77a4.5 4.5 0 015.657 0l1.906 1.907c.517.516 1.28.586 1.847.17l2.769-2.769a4.5 4.5 0 015.656 0L21 10.5M3 15l2.772-2.772a4.5 4.5 0 015.656 0l1.907 1.907c.517.516 1.28.586 1.847.17l2.769-2.769a4.5 4.5 0 015.656 0L21 22.5M3 3h.75M3 12h.75M3 21h.75M21 3h.75M21 12h.75M21 21h.75" />
+            <Path strokeLinecap="round" strokeLinejoin="round" d="m21 7.5-9-5.25L3 7.5m18 0-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" />
         </SVGContainer>
     )
 }
@@ -467,6 +531,22 @@ export const BookISBNIcon = (props: IProps) => {
     return (
         <SVGContainer {...props}>
             <Path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /> 
+        </SVGContainer>
+    )
+}
+
+export const BookMarkIcon = (props: IProps) =>{
+    return (
+        <SVGContainer {...props}>
+            <Path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z" />
+        </SVGContainer>
+    )
+}
+
+export const LoveIcon = (props: IProps) =>{
+    return (
+        <SVGContainer {...props}>
+            <Path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
         </SVGContainer>
     )
 }
@@ -644,6 +724,8 @@ export const homeIcon = (props: IProps) => {
 
     )
 }
+
+
 
 
 

@@ -63,8 +63,10 @@ export const downloadFile = async (book:IBook):Promise<IBookDownloaded|undefined
 
     console.log('File not found locally. Starting download.');
 
-    const downloadUrl = book.premium?.[0] || book.samplePdfUrl?.[0];
+    const typeConvertDownloadUrl = typeof book.premium == "string" ? book.premium : book.premium?.[0];
+    const downloadUrl = typeConvertDownloadUrl || book.samplePdfUrl?.[0];
     const result = await RNFS.downloadFile({
+      //@ts-ignore
       fromUrl: downloadUrl,
       toFile: localFilePath,
     }).promise;

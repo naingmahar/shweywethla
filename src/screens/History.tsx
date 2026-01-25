@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
-import { getDownloadedBooks } from '../services/downloadedBooksDB';
+import { getDownloadedBooks, removeDownloadedBook } from '../services/downloadedBooksDB';
 import { IBookDownloaded } from '../types/models/IBook';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MainNav, RootStackParamList } from '../nav/main.nav';
-import { Colors } from '../res/color';
+import { Colors, GradientColor } from '../res/color';
+import { EsButton, GradientButton } from '../componet/atoms/container/EsButton';
+import { GradientContainer } from '../componet/atoms/container/GradientContainer';
+import EmptyLibraryScreen from '../componet/atoms/container/EmptyLibraryScreen';
 
 type HistoryScreenProps = NativeStackScreenProps<RootStackParamList, MainNav.History>;
 
@@ -30,7 +33,7 @@ export const History:React.FC<HistoryScreenProps> = ({navigation}) => {
   const renderItem = ({ item }:{item:IBookDownloaded}) => (
     <TouchableOpacity
       style={styles.bookItem}
-      onPress={() => navigation.navigate(MainNav.BookDeatils, item)}
+      onPress={()=>navigation.navigate(MainNav.ADS,item)}
     >
         <Image
         style={styles.bookCover}
@@ -39,6 +42,16 @@ export const History:React.FC<HistoryScreenProps> = ({navigation}) => {
       <View style={styles.bookInfo}>
         <Text style={styles.bookTitle}>{item.title}</Text>
         <Text style={styles.bookAuthor}>{item.author}</Text>
+      </View>
+      <View style={{justifyContent:"center"}}>
+        <EsButton 
+        style={{paddingHorizontal:20,paddingVertical:5,backgroundColor:GradientColor[5]}}
+        onPress={()=>{
+          removeDownloadedBook(item.id)
+          .then(()=>fetchDownloadedBooks())
+          .catch(err=>console.log(err))
+        }} 
+        title='Delete' />
       </View>
     </TouchableOpacity>
   );
@@ -54,16 +67,13 @@ export const History:React.FC<HistoryScreenProps> = ({navigation}) => {
 
   return (
     <View style={styles.container}>
-      {/* Header View */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Your Downloads</Text>
-      </View>
-      {/* End of Header View */}
+    
+      <GradientContainer style={styles.header}>
+          <Text style={styles.headerTitle}>Downloaded Books</Text>
+      </GradientContainer>
 
       {downloadedBooks.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No books have been downloaded yet.</Text>
-        </View>
+        <EmptyLibraryScreen onBrowsePress={() => navigation.navigate(MainNav.Books, { category: 'Popular' })}/>
       ) : (
         <FlatList
           refreshing={loading}
@@ -84,13 +94,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
   },
   header: {
-    backgroundColor: Colors.nav,
-    paddingVertical: 15,
+    // backgroundColor: Colors.nav,
+    paddingVertical: 10,
     paddingHorizontal: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
+    // borderBottomLeftRadius: 20,
+    // borderBottomRightRadius: 20,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
@@ -99,7 +109,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: 'bold',
     color: 'white',
     marginTop: 20, // To avoid status bar overlap
@@ -151,6 +161,7 @@ const styles = StyleSheet.create({
 bookInfo: {
     flex: 1,
     justifyContent: 'center',
+    // alignItems:"center"
   },
   bookTitle: {
     fontSize: 18,

@@ -14,8 +14,8 @@ export interface IBook {
   samplePdfUrl: string[]
   isMasterBook?: boolean
   masterUrl?: string
-  premium?: string[]
-  premium_type?: 'html' | 'text' | 'pdf' | null
+  premium?: string[] | string
+  premium_type?: 'html' | 'text' | 'pdf' | 'Comming_Soon'|null
 
 }
 

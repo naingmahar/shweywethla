@@ -63,6 +63,14 @@ export enum IconKey {
     sun="lightModeIcon",
     moon="nightModeIcon",
     home="homeIcon",
+    bookmaek="BookMarkIcon",
+    like="LoveIcon",
+    love="LoveIcon",
+    download="DownloadIcon",
+    male="MaleIcon",
+    female="FemaleIcon",
+    touch="TouchIcon",
+    rocket="RocketIcon"
 }
 
 

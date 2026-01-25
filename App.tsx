@@ -36,6 +36,9 @@ import { setHeaderWithToken } from './src/features/apiClient/config/Instance';
 import mobileAds from 'react-native-google-mobile-ads';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from './src/res/color';
+import AppUpdateChecker from './src/componet/atoms/AppUpdateChecker';
+import AdAlert from './src/componet/atoms/modal/AdAlert';
+import { notificationListener, requestUserPermission } from './src/services/NotificationService';
 
 type SectionProps = PropsWithChildren<{
   title: string;
@@ -82,11 +85,16 @@ function App(): React.JSX.Element {
       },3000)
   },[])
 
+  useEffect(() => {
+    requestUserPermission();
+    notificationListener(undefined); // pass your navigation ref here
+  }, []);
+
   return (
     <SafeAreaView style={[{flex:1}]}>
       <StatusBar
         barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={ isDarkMode ? Colors.nav : Colors.nav }
+        backgroundColor={ isDarkMode ? "white" : "white" }
       />
       <PersistQueryClientProvider 
         client={queryClient}  
@@ -95,6 +103,8 @@ function App(): React.JSX.Element {
           console.log("STORE")
         }}
       >
+        <AppUpdateChecker />
+        <AdAlert  />
         {/* <RecoilRoot> */}
         <Provider>
           <NavigationContainer>

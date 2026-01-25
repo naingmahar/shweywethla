@@ -46,9 +46,9 @@ const MenuGroup = (props:IMenuGroup) => {
 export const Setting = () => {
     const [getUser] = useAtom(AuthAtom)
     return (
-        <ScrollView  style={{backgroundColor:Colors.transprentGreen}}>
+        <ScrollView >
             <FlexContainer centerAlign style={styles.container}>
-                <BgPhoto isNotUrl={true} isOutsitePhoto uri={Images.logo} style={styles.image}  />
+                {/* <BgPhoto isNotUrl={true} isOutsitePhoto uri={Images.logo} style={styles.image}  /> */}
                 <EsNormalHeader>{getUser?.name}</EsNormalHeader>
                 {/* <MenuGroup 
                     title="General" 

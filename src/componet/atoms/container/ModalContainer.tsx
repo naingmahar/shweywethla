@@ -1,5 +1,5 @@
 import { FC, ForwardedRef, forwardRef, useImperativeHandle, useState } from "react"
-import { Modal, StyleSheet, View } from "react-native"
+import { Modal, Pressable, StyleSheet, View } from "react-native"
 
 export interface IEsModelProps{
     children:any
@@ -30,10 +30,11 @@ export const EsModel = forwardRef<IEsModelRefProps,IEsModelProps>((props,modalRe
                 animationType="fade"
                 transparent={true}
                 visible={visible}
+                
                 >
-                    <View style={styles.base}>
+                    <Pressable onPress={()=>{open(false)}} style={styles.base}>
                         {props.children}
-                    </View>
+                    </Pressable>
             </Modal>
         )
 })

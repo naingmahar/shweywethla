@@ -43,6 +43,7 @@ export const removeDownloadedBook = async (bookId:string) => {
   try {
     const existingBooks:IBook[] = await getDownloadedBooks();
     const newBooks = existingBooks.filter(book => book.id !== bookId);
+    console.log('New Books ',bookId,newBooks)
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newBooks));
   } catch (e) {
     console.error("Failed to remove downloaded book:", e);

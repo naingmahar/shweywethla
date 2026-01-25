@@ -47,6 +47,8 @@ export enum MainNav  {
   PdfReader="PdfReader",
   TextReader="TextReader",
   HtmlReader="HtmlReader",
+  Dashboard="Dashboard",
+  BookList="BookList",
 }
 
 export type RootStackParamList = {
@@ -65,9 +67,11 @@ export type RootStackParamList = {
   "PdfReader":IBook,
   "TextReader":IBook,
   "HtmlReader":IBook,
-  "Books":any,
+  "Books":{category:string},
+  "BookList":{category:string},
   "BookDetails":IBook,
   "History":any,
+  "Dashboard":any
 };
 
 
@@ -96,9 +100,9 @@ export default function AppRoute() {
         {/* <Stack.Screen name={MainNav.WELCOME} component={RegisterScreen} options={{headerShown:false}}  /> */}
         {/* <Stack.Screen name={MainNav.Reader} component={ReaderWebView} options={{headerShown:false}}  />  */}
         <Stack.Screen name={MainNav.HOME} component={BottomTabs} options={{headerShown:false}}  />
-        <Stack.Screen name={MainNav.BookDeatils} component={BookDetailsScreen} options={{headerShown:false}}   />
+        {/* <Stack.Screen name={MainNav.BookDeatils} component={BookDetailsScreen} options={{headerShown:false}}   /> */}
         <Stack.Screen name={MainNav.Reader} component={Reader} options={{headerShown:false}}   />
-        <Stack.Screen name={MainNav.Books} component={BookListScreen} options={{headerShown:false}}  />
+        {/* <Stack.Screen name={MainNav.Books} component={BookListScreen} options={{headerShown:false}}  /> */}
         {/* <Stack.Screen name={MainNav.PdfReader} component={PdfReader} options={{headerShown:false}}   />
         <Stack.Screen name={MainNav.TextReader} component={TextReaderPage} options={{headerShown:false}}   />
         <Stack.Screen name={MainNav.HtmlReader} component={ReaderWebView} options={{headerShown:false}}   /> */}

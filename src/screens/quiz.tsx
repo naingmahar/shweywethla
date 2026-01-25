@@ -17,11 +17,11 @@ import { quizIndexState } from "../features/recoilState";
 import { ESColor } from "../componet/atoms/res/EsColor";
 import { Icon, IconKey, IconsSize } from "../componet/atoms/icons";
 import { updateQuizStorageInfo } from "../features/storage/QuizStore";
-import LottieView from "lottie-react-native";
+// import LottieView from "lottie-react-native";
 // import { BackgroundMusic } from "../componet/atoms/music";
 // import TrackPlayer from "react-native-track-player";
 import { IQuiz } from "../types/models/IQuiz";
-import { QuizLoading } from "./quiz/Loading";
+// import { QuizLoading } from "./quiz/Loading";
 import { CompleteQuiz } from "./quiz/Finished";
 import { QuizzAns } from "./quiz/QuizAns";
 
@@ -87,9 +87,9 @@ export const Quizzes = (props:IProps) => {
                 }}
             />
 
-            <QuizLoading 
+            {/* <QuizLoading 
                 isLoading={getQuizzesByCategory.status == "pending"} 
-                onPress={()=>props.navigation.navigate("Home")}  />
+                onPress={()=>props.navigation.navigate("Home")}  /> */}
 
             <CompleteQuiz 
                 isCompleted={quizzesInfo.index >= (getQuizzesByCategory.data?.data||[]).length}

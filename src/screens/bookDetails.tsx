@@ -1,45 +1,171 @@
 import React, { createRef, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Linking, Dimensions } from 'react-native';
-import { IBook } from '../types/models/IBook';
-import { NavigationProp } from '@react-navigation/native';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { MainNav, RootStackParamList } from '../nav/main.nav';
-import { downloadFile } from '../utils/downloadFile';
-import { getRecordAdWatch, RemoveSavedRecordAdWatch } from '../services/recordAdsWatch';
-import { getDownloadedBooks, isBookDownloaded } from '../services/downloadedBooksDB';
-import { Colors } from '../res/color';
-import { EsModel } from '../componet/atoms/container/ModalContainer';
+import firestore from '@react-native-firebase/firestore';
+
+// Types
+import { IBook } from '../types/models/IBook';
+import { RootStackParamList, MainNav } from '../nav/main.nav';
 import { IEsModelRefProps } from '../componet/atoms/Types/IModal';
+
+// Components
+import { EsModel } from '../componet/atoms/container/ModalContainer';
 import { FlexContainer, FlexRowContainer } from '../componet/atoms/container/FlexContainer';
 import { EsTextInput } from '../componet/atoms/EsTextInput';
-import { EsNormalHeader } from '../componet/atoms/EsText';
-import Checkbox from '@react-native-community/checkbox';
-import { EsButton } from '../componet/atoms/container/EsButton';
-import firestore, { addDoc, collection, or, orderBy, query } from '@react-native-firebase/firestore';
-import { deviceInfo } from '../utils/deviceInfo';
+import { EsNormalHeader, EsSmallHeader } from '../componet/atoms/EsText';
+import { GradientButton } from '../componet/atoms/container/EsButton';
+import { Icon, IconKey } from '../componet/atoms/icons';
+
+// Services & Utils
+import { RemoveSavedRecordAdWatch } from '../services/recordAdsWatch';
+import { isBookDownloaded } from '../services/downloadedBooksDB';
 import { getStoreUserInfo, StoreUserInfo } from '../features/storage/UserStorage';
+import { deviceInfo } from '../utils/deviceInfo';
+import { Colors } from '../res/color';
 
-interface BookDetailsProps {
-  book: IBook;
-}
-
+// Constants
 const { width } = Dimensions.get('window');
-const coverWidth = width * 0.6;
-const coverHeight = coverWidth * 1.5;
+const COVER_WIDTH = width * 0.6;
+const COVER_HEIGHT = COVER_WIDTH * 1.5;
+const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
 
 type BookDetailsScreenProps = NativeStackScreenProps<RootStackParamList, MainNav.BookDeatils>;
 
-const BookDetailsScreen: React.FC<BookDetailsScreenProps> = ({route,navigation}) => {
+// Header Component
+const GradientHeader: React.FC = () => (
+  <LinearGradient
+    colors={['#7B5EC9', '#4B71C8', '#22B4D3']}
+    locations={[0.0, 0.5, 1.0]}
+    start={{ x: 0, y: 0 }}
+    end={{ x: 1, y: 1 }}
+    style={[headerStyles.container, { flexDirection: 'row' }]}>
+    <Text style={[headerStyles.title, { flex: 1,textAlign:"center" }]}>Shwe Ywet Hla</Text>
+  </LinearGradient>
+);
 
+// Gender Selector Component
+interface GenderSelectorProps {
+  selectedGender: string;
+  onGenderChange: (gender: 'Male' | 'Female' | 'Other') => void;
+}
+
+const GenderSelector: React.FC<GenderSelectorProps> = ({ selectedGender, onGenderChange }) => (
+  <>
+    <Text style={styles.genderLabel}>Gender Identity</Text>
+    <FlexRowContainer noneBasicStyle style={styles.genderContainer}>
+      {GENDER_OPTIONS.map((option) => (
+        <TouchableOpacity
+          key={option}
+          style={[
+            styles.genderChip,
+            selectedGender === option
+              ? styles.genderChipSelected
+              : styles.genderChipUnselected,
+          ]}
+          activeOpacity={0.7}
+          onPress={() => onGenderChange(option as any)}>
+          <Icon
+            icon={option === 'Male' ? IconKey.male : IconKey.female}
+            size={20}
+            className={{ color: selectedGender === option ? '#7B5EC9' : '#999' }}
+          />
+          <Text
+            style={[
+              styles.genderChipText,
+              selectedGender === option && styles.genderChipTextSelected,
+            ]}>
+            {option}
+          </Text>
+          {selectedGender === option && <View style={styles.selectedDot} />}
+        </TouchableOpacity>
+      ))}
+    </FlexRowContainer>
+  </>
+);
+
+// Register Modal Component
+interface RegisterModalProps {
+  name: string;
+  gender: string;
+  onNameChange: (name: string) => void;
+  onGenderChange: (gender: 'Male' | 'Female' | 'Other') => void;
+  onRegister: () => void;
+  onContinue: () => void;
+  isFormValid: boolean;
+}
+
+const RegisterModal = React.forwardRef<IEsModelRefProps, RegisterModalProps>(
+  (
+    {
+      name,
+      gender,
+      onNameChange,
+      onGenderChange,
+      onRegister,
+      onContinue,
+      isFormValid,
+    },
+    ref
+  ) => (
+    <EsModel ref={ref}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'flex-end',
+          backgroundColor: 'rgba(0,0,0,0.5)',
+        }}>
+        <FlexContainer fullWidth style={styles.modalContent}>
+          <View style={styles.modalHandle} />
+
+          <EsNormalHeader style={styles.modalTitle}>Create Profile</EsNormalHeader>
+
+          <EsSmallHeader style={{ textAlign: 'center', marginBottom: 25, color: '#666' }}>
+            Please enter your details to continue reading
+          </EsSmallHeader>
+
+          <View style={styles.inputWrapper}>
+            <EsTextInput
+              isError={false}
+              label="Full Name"
+              onChange={onNameChange}
+              placeHolder="Enter your name"
+            />
+          </View>
+
+          <GenderSelector selectedGender={gender} onGenderChange={onGenderChange} />
+
+          <TouchableOpacity
+            disabled={!isFormValid}
+            onPress={onContinue}
+            style={[styles.buttonWrapper, !isFormValid && { opacity: 0.5 }]}>
+            <LinearGradient
+              colors={['#7B5EC9', '#4B71C8', '#22B4D3']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.continueButtonGradient}>
+              <Text style={styles.buttonText}>Continue to Reader</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </FlexContainer>
+      </View>
+    </EsModel>
+  )
+);
+
+const BookDetailsScreen: React.FC<BookDetailsScreenProps> = ({ route, navigation }) => {
   const book = route.params;
-  const [downloaded, setDownloaded] = React.useState(false);
-  const [name, setName] = useState<string>("");
-  const [email, setEmail] = useState<string>("")
-  const [gender, setGender] = useState<"Male"|"Female"|"Other"|"">("");
-      const registerModalRef = createRef<IEsModelRefProps>()
-  const options = ['Male', 'Female', 'Other'];
+  const registerModalRef = createRef<IEsModelRefProps>();
 
-  if (!route.params || !route.params) {
+  // State
+  const [downloaded, setDownloaded] = useState(false);
+  const [name, setName] = useState<string>('');
+  const [gender, setGender] = useState<'Male' | 'Female' | 'Other' | ''>('');
+
+  const db = firestore();
+
+  // Validation
+  if (!book) {
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>Book not found.</Text>
@@ -47,80 +173,73 @@ const BookDetailsScreen: React.FC<BookDetailsScreenProps> = ({route,navigation})
     );
   }
 
+  // Check if book is downloaded on mount
   useEffect(() => {
-    isBookDownloaded(book.id).then((res)=>{
-        if(res){
-            setDownloaded(true)
-        }else{
-            getRecordAdWatch().then((adWatched)=>{
-                console.log('Ad Watched ',adWatched);
-                // if(adWatched === true && res == undefined){
-                //     downloadFile(book)
-                //         .then((downloadedBook)=>{
-                //             if(downloadedBook) 
-                //                 navigation.navigate(MainNav.Reader,downloadedBook)
-                //         })
-                // }
-            })
-        }
-        
-    })
-    return(()  => {
-        RemoveSavedRecordAdWatch()
-    })  
-  },[])
+    isBookDownloaded(book.id).then((res) => {
+      setDownloaded(!!res);
+    });
+    return () => {
+      RemoveSavedRecordAdWatch();
+    };
+  }, []);
 
-  const db = firestore();
 
-  const register = async () => {
-    const registerRef = db.collection('Users') 
-    const deviceInformation = await deviceInfo();
-    await registerRef.add({
+
+  // Register user in Firestore
+  const handleRegister = async () => {
+    try {
+      const deviceInformation = await deviceInfo();
+      const userDoc = await db.collection('Users').add({
         name,
         gender,
-        deviceInformation
+        deviceInformation,
+      });
 
-      }).then((val)=>{
-            // console.log("User Added!")
-            StoreUserInfo({id:val.id,name,gender})
-            registerModalRef.current?.close()
-        }).catch((err)=>{
-            console.log("Error: ",err)
-            registerModalRef.current?.close()
-        })
-  }
-
-    const userActivity = async (user:string,action:string,book:string) => {
-      const activityRef = db.collection('activityLogs') 
-      await activityRef.add({
-          user,
-          action,
-          book,
-          timestamp:firestore.FieldValue.serverTimestamp()
-        }).then((val)=>{
-              console.log("Added activity!")
-          }).catch((err)=>{
-              console.log("Error: ",err)
-          })
+      StoreUserInfo({ id: userDoc.id, name, gender });
+      registerModalRef.current?.close();
+    } catch (error) {
+      console.error('Registration error:', error);
+      registerModalRef.current?.close();
     }
+  };
 
+  // Log user activity
+  const logUserActivity = async (action: string) => {
+    try {
+      const userData = await getStoreUserInfo();
+      if (!userData?.id) return;
+
+      await db.collection('activityLogs').add({
+        user: userData.id,
+        action,
+        book: book.id,
+        timestamp: firestore.FieldValue.serverTimestamp(),
+      });
+    } catch (error) {
+      console.error('Activity log error:', error);
+    }
+  };
+
+  // Handle opening PDF/reader
   const handleOpenPdf = async () => {
     const userData = await getStoreUserInfo();
-    userActivity(userData?.id||"",downloaded? "read":"download",book.id)
-    if(!userData){
-        registerModalRef.current?.open()
-    }else{   
-      let adWatched = await getRecordAdWatch();
-      if(adWatched === false){
-          navigation.navigate(MainNav.ADS,book)
-      }else{
-          navigation.navigate(MainNav.Reader,book)
-      }
+    
+    await logUserActivity(downloaded ? 'read' : 'download');
+
+    if (!userData) {
+      registerModalRef.current?.open();
+      return;
     }
-}
+
+    navigation.navigate(MainNav.ADS, book);
+  };
+
+  const isFormValid = name.trim() !== '' && gender !== '';
 
   return (
     <ScrollView style={styles.container}>
+      <GradientHeader />
+
       <View style={styles.header}>
         <Image
           style={styles.coverImage}
@@ -129,87 +248,31 @@ const BookDetailsScreen: React.FC<BookDetailsScreenProps> = ({route,navigation})
         />
         <Text style={styles.title}>{book.title}</Text>
         <Text style={styles.author}>by {book.author}</Text>
-      </View>
 
-      <View style={styles.detailsContainer}>
-        {/* <View style={styles.priceContainer}>
-          <Text style={styles.priceText}>${book.price}</Text>
-        </View> */}
-
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Genre:</Text>
-          <Text style={styles.infoValue}>{book.genre}</Text>
-        </View>
-
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Language:</Text>
-          <Text style={styles.infoValue}>{book.language}</Text>
-        </View>
-
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Published:</Text>
-          <Text style={styles.infoValue}>{book.publishedDate}</Text>
-        </View>
-
-        {book.publisher && (
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Publisher:</Text>
-            <Text style={styles.infoValue}>{book.publisher}</Text>
-          </View>
+        {book.samplePdfUrl && (
+          <GradientButton
+            style={[styles.pdfButton, { marginTop: 20 }]}
+            onPress={handleOpenPdf}
+            title={downloaded ? 'Read Now' : 'Download'}
+          />
         )}
-
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Pages:</Text>
-          <Text style={styles.infoValue}>{book.numberOfPages}</Text>
-        </View>
-
-        <Text style={styles.descriptionHeader}>Description</Text>
-        <Text style={styles.descriptionText}>{book.description}</Text>
       </View>
-
-      {book.samplePdfUrl && (
-        <TouchableOpacity style={styles.pdfButton} onPress={handleOpenPdf}>
-          <Text style={styles.pdfButtonText}>{downloaded ?  "Read Now" : "Download"}</Text>
-        </TouchableOpacity>
-      )}
 
       <View style={{ height: 50 }} />
 
-      {/* {Register Modal} */}
-      <EsModel ref={registerModalRef} >
-        <View style={{height:"50%"}} />
-        <FlexContainer fullFlex fullWidth style={{padding:20,backgroundColor:'white',borderRadius:20}}>
-            <EsNormalHeader style={{textAlign:'center',marginBottom:20}}>Your Information</EsNormalHeader>
-            <EsTextInput isError={false}  label='Name' onChange={(val)=>{setName(val)}} placeHolder='Please Enter Your Name' />
-            {/* <EsTextInput isError={false}  label='Email' onChange={()=>{}} placeHolder='Please Enter Your Email (Optional)' /> */}
-            <FlexRowContainer noneBasicStyle style={{marginTop:10,alignItems:'center'}}>
-                {options.map((opt) => (
-                  <TouchableOpacity
-                      key={opt}
-                      style={styles.item}
-                      activeOpacity={0.7}
-                      onPress={() => setGender(opt as any)}
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected: gender === opt }}
-                      >
-                      <Checkbox
-                      value={gender === opt}
-                      onValueChange={() => setGender(opt as any)}
-                      tintColors={{ true: Colors.nav, false: '#8e8e93' }}
-                      />
-                      <Text style={styles.label}>{opt}</Text>
-                      </TouchableOpacity>
-                      ))}
-            </FlexRowContainer>
-
-            <EsButton title='Continue'  isDisible={name == "" || gender == ""} style={[styles.pdfButton,{marginTop:30}]} onPress={()=>{
-                register()
-                navigation.navigate(MainNav.ADS,book)
-            }}>
-                {/* <Text style={styles.pdfButtonText}>Continue</Text> */}
-            </EsButton>
-        </FlexContainer>
-      </EsModel>
+      <RegisterModal
+        ref={registerModalRef}
+        name={name}
+        gender={gender}
+        onNameChange={setName}
+        onGenderChange={setGender}
+        onRegister={handleRegister}
+        onContinue={() => {
+          handleRegister();
+          navigation.navigate(MainNav.ADS, book);
+        }}
+        isFormValid={isFormValid}
+      />
     </ScrollView>
   );
 };
@@ -231,9 +294,9 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: '#FFFFFF',
     padding: 20,
+    margin: 20,
     alignItems: 'center',
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
+    borderRadius: 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -241,9 +304,10 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   coverImage: {
-    width: coverWidth,
-    height: coverHeight,
-    borderRadius: 10,
+    marginTop: -100,
+    width: COVER_WIDTH,
+    height: COVER_HEIGHT,
+    borderRadius: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
@@ -263,53 +327,7 @@ const styles = StyleSheet.create({
     marginTop: 5,
     lineHeight: 35,
   },
-  detailsContainer: {
-    padding: 20,
-  },
-  priceContainer: {
-    backgroundColor: '#4CAF50',
-    borderRadius: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    alignSelf: 'flex-start',
-    marginBottom: 20,
-  },
-  priceText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  infoRow: {
-    flexDirection: 'row',
-    marginBottom: 10,
-    alignItems: 'center',
-  },
-  infoLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#444',
-    width: 100,
-  },
-  infoValue: {
-    fontSize: 16,
-    color: '#666',
-    flex: 1,
-    lineHeight: 30,
-  },
-  descriptionHeader: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 15,
-    marginBottom: 5,
-  },
-  descriptionText: {
-    fontSize: 16,
-    color: '#666',
-    lineHeight: 30,
-  },
   pdfButton: {
-    backgroundColor: Colors.nav,
     paddingVertical: 15,
     paddingHorizontal: 25,
     borderRadius: 30,
@@ -321,20 +339,123 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 5,
   },
-  pdfButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
+  // Modal Styles
+  modalContent: {
+    padding: 24,
+    backgroundColor: 'white',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingBottom: 40,
   },
-  item: {
+  modalHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#EFEEF0',
+    borderRadius: 10,
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    textAlign: 'center',
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#1A1A1A',
+  },
+  inputWrapper: {
+    marginBottom: 25,
+  },
+  // Gender Selector Styles
+  genderLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#999',
+    textTransform: 'uppercase',
+    marginBottom: 12,
+    letterSpacing: 1,
+    marginLeft: 4,
+  },
+  genderContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 10,
+  },
+  genderChip: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 6,
+    justifyContent: 'center',
+    height: 56,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    position: 'relative',
   },
-  label: {
-    marginLeft: 6,
+  genderChipUnselected: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#F0F0F2',
+  },
+  genderChipSelected: {
+    backgroundColor: '#F8F7FF',
+    borderColor: '#7B5EC9',
+  },
+  genderChipText: {
     fontSize: 16,
-    color: '#333',
+    fontWeight: '600',
+    color: '#999',
+    marginLeft: 10,
+  },
+  genderChipTextSelected: {
+    color: '#7B5EC9',
+  },
+  selectedDot: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#7B5EC9',
+  },
+  // Button Styles
+  buttonWrapper: {
+    marginTop: 30,
+    shadowColor: '#4B71C8',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  continueButtonGradient: {
+    height: 58,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+});
+
+const headerStyles = StyleSheet.create({
+  container: {
+    backgroundColor: Colors.nav,
+    padding: 16,
+    paddingTop: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    marginBottom: 100,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
   },
 });
 

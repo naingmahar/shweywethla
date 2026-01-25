@@ -17,12 +17,14 @@ export const Reader:React.FC<ReaderScreenProps> = ({route,navigation}) => {
         .then((downloadedBook)=>{
             if(downloadedBook) setPath(downloadedBook.localFilePath)
         })
+
+
     },[])
     return(
        <>
          {path != null &&  bookType == "html" && <ReaderFlatListWebView path={path} title={book.title}/>}
          {path != null &&  bookType == "text" && <TextReaderPage path={path}/>}
-         {path != null &&  bookType == undefined && <PdfReader path={path}/>}
+         {path != null &&  bookType == "pdf" && <PdfReader path={path}/>}
        </>
     )
 }

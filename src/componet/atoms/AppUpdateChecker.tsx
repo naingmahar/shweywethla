@@ -1,12 +1,30 @@
-// AppUpdateChecker.tsx
-
 import React, { useState, useEffect, FC } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Linking, Modal, ActivityIndicator, Platform } from 'react-native';
-import { getDatabase, ref, onValue, DatabaseReference,firebase } from '@react-native-firebase/database';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TouchableOpacity, 
+  Linking, 
+  Modal, 
+  ActivityIndicator, 
+  Dimensions 
+} from 'react-native';
+import { ref, onValue, DatabaseReference, firebase } from '@react-native-firebase/database';
 import { getVersion } from 'react-native-device-info';
-import { Colors } from '../../res/color';
+import LinearGradient from 'react-native-linear-gradient';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withRepeat, 
+  withTiming, 
+  withSequence, 
+  FadeInUp,
+  FadeInDown
+} from 'react-native-reanimated';
+import { Icon, IconKey } from '../../componet/atoms/icons'; // Ensure this path is correct
+import { GradientColor } from '../../res/color';
 
-// 1. Define the interfaces for the data structure
+// 1. Interfaces
 interface AppVersionConfig {
   currentVersion: string;
   forceUpdateVersion: string;
@@ -18,25 +36,18 @@ interface AppVersionConfig {
   updateMessage: string;
 }
 
-interface AppConfig {
-  android: AppVersionConfig;
-  ios: AppVersionConfig;
-}
-
 interface NoticeContent {
   title: string;
   message: string;
 }
-// 2. Firebase configuration (replace with your actual config)
+
+// 2. Constants
+const { width } = Dimensions.get('window');
 const database = firebase
   .app()
-  .database('https://shweywethla-49cb4-default-rtdb.asia-southeast1.firebasedatabase.app/')
+  .database('https://shweywethla-49cb4-default-rtdb.asia-southeast1.firebasedatabase.app/');
 
-
-// 4. Current App Version
 const CURRENT_APP_VERSION = getVersion();
-
-// 5. App Store URLs
 const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.shweywethla';
 
 const AppUpdateChecker: FC = () => {
@@ -46,25 +57,34 @@ const AppUpdateChecker: FC = () => {
   const [noticeVisible, setNoticeVisible] = useState<boolean>(false);
   const [noticeContent, setNoticeContent] = useState<NoticeContent>({ title: '', message: '' });
 
+  // Animation shared value
+  const rocketY = useSharedValue(0);
+
   useEffect(() => {
-    const platform = 'android' ;
+    // Start floating animation
+    rocketY.value = withRepeat(
+      withSequence(
+        withTiming(-12, { duration: 1500 }),
+        withTiming(0, { duration: 1500 })
+      ),
+      -1,
+      true
+    );
+
+    const platform = 'android';
     const appRef: DatabaseReference = ref(database, `${platform}`);
     
     const unsubscribe = onValue(appRef, (snapshot) => {
       setLoading(false);
       const data: AppVersionConfig | null = snapshot.val();
       
-      console.log("Fetched app config:", data);
       if (data) {
-        // --- Check for updates ---
         const compareVersions = (current: string, required: string): boolean => {
-          const currentParts: number[] = current.split('.').map(Number);
-          const requiredParts: number[] = required.split('.').map(Number);
-          
+          const currentParts = current.split('.').map(Number);
+          const requiredParts = required.split('.').map(Number);
           for (let i = 0; i < requiredParts.length; i++) {
-            if (currentParts[i] < requiredParts[i]) {
-              return true;
-            }
+            if (currentParts[i] < requiredParts[i]) return true;
+            if (currentParts[i] > requiredParts[i]) return false;
           }
           return false;
         };
@@ -72,12 +92,8 @@ const AppUpdateChecker: FC = () => {
         if (compareVersions(CURRENT_APP_VERSION, data.requiredVersion)) {
           setUpdateRequired(true);
           setForceUpdate(data.requestUpdate && data.forceUpdateVersion === data.requiredVersion);
-          console.log("Update required:", data.requiredVersion, "Current version:", CURRENT_APP_VERSION);  
-        } else {
-          setUpdateRequired(false);
         }
 
-        // --- Check for server notice ---
         if (data.requestNoticMessage) {
           setNoticeContent({
             title: data.noticMessageTitle,
@@ -87,199 +103,221 @@ const AppUpdateChecker: FC = () => {
         }
       }
     }, (error) => {
-      console.error("Firebase fetch failed:", error);
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
-  const openAppStore = (url: string): void => {
-    Linking.openURL(url).catch(err => console.error("Couldn't load page", err));
+  const rocketStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: rocketY.value }],
+  }));
+
+  const openAppStore = (): void => {
+    Linking.openURL(PLAY_STORE_URL).catch(err => console.error("Store Error", err));
   };
 
-  const ForceUpdateModal: FC = () => (
-    <Modal transparent={true} animationType="slide" visible={updateRequired && forceUpdate}>
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Update Required</Text>
-          <Text style={styles.modalMessage}>
-            A new version of the app is available. Please update to continue.
-          </Text>
-          <TouchableOpacity
-            style={[styles.button, styles.forceUpdateButton]}
-            onPress={() => openAppStore(PLAY_STORE_URL)}
-          >
-            <Text style={styles.buttonText}>Update Now</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
-
-  const NormalUpdateModal: FC = () => (
-    <Modal transparent={true} animationType="slide" visible={updateRequired && !forceUpdate}>
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Update Available</Text>
-          <Text style={styles.modalMessage}>
-            A new version is available with new features and improvements.
-          </Text>
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={[styles.button, styles.normalUpdateButton]}
-              onPress={() => openAppStore( PLAY_STORE_URL)}
-            >
-              <Text style={styles.buttonText}>Update Now</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.laterButton]}
-              onPress={() => setUpdateRequired(false)}
-            >
-              <Text style={styles.laterButtonText}>Later</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-
-  const NoticeAlertModal: FC = () => (
-    <Modal
-      transparent={true}
-      animationType="fade"
-      visible={noticeVisible}
-      onRequestClose={() => setNoticeVisible(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>{noticeContent.title}</Text>
-          <Text style={styles.modalMessage}>{noticeContent.message}</Text>
-          <TouchableOpacity
-            style={[styles.button, styles.normalUpdateButton]}
-            onPress={() => setNoticeVisible(false)}
-          >
-            <Text style={styles.buttonText}>Dismiss</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
-
-  if (loading) {
-    return (
-      <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color="#007BFF" />
-        <Text style={styles.loadingText}>Checking for updates...</Text>
-      </View>
-    );
-  }
+  if (loading) return null;
 
   return (
     <View style={styles.container}>
-      {/* <Text style={styles.mainContent}>Welcome to the App!</Text>
-      <Text style={styles.versionText}>Current Version: {CURRENT_APP_VERSION}</Text> */}
-      
-      {updateRequired && forceUpdate && <ForceUpdateModal />}
-      {updateRequired && !forceUpdate && <NormalUpdateModal />}
-      {noticeVisible && <NoticeAlertModal />}
+      {/* UPDATE MODAL */}
+      <Modal transparent visible={updateRequired} animationType="fade">
+        <View style={styles.modalOverlay}>
+          <Animated.View entering={FadeInUp.duration(600)} style={styles.modalCard}>
+            
+            {/* Floating Icon Header */}
+            <View style={styles.iconContainer}>
+              <LinearGradient 
+                colors={[GradientColor[1], GradientColor[3]]} 
+                style={styles.iconCircle}
+              >
+                <Animated.View style={rocketStyle}>
+                  <Icon icon={IconKey.rocket} size={50} className={{ color: 'white' }} />
+                </Animated.View>
+              </LinearGradient>
+            </View>
+
+            <View style={styles.textContainer}>
+              <Text style={styles.title}>Update Available!</Text>
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>v{CURRENT_APP_VERSION} → Latest</Text>
+              </View>
+              
+              <Text style={styles.message}>
+                ကျွန်ုပ်တို့၏ App ကို ပိုမိုမြန်ဆန်ကောင်းမွန်စေရန်အတွက် ဗားရှင်းအသစ်သို့ အဆင့်မြှင့်တင်ပေးပါ။
+              </Text>
+
+              <TouchableOpacity activeOpacity={0.8} onPress={openAppStore} style={styles.buttonWrapper}>
+                <LinearGradient 
+                  colors={[GradientColor[1], GradientColor[3]]} 
+                  start={{x: 0, y: 0}} end={{x: 1, y: 0}}
+                  style={styles.gradientButton}
+                >
+                  <Text style={styles.buttonText}>UPDATE NOW</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              {!forceUpdate && (
+                <TouchableOpacity 
+                  onPress={() => setUpdateRequired(false)} 
+                  style={styles.laterButton}
+                >
+                  <Text style={styles.laterText}>Maybe Later</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </Animated.View>
+        </View>
+      </Modal>
+
+      {/* SERVER NOTICE MODAL */}
+      <Modal transparent visible={noticeVisible} animationType="fade">
+        <View style={styles.modalOverlay}>
+          <Animated.View entering={FadeInDown} style={styles.noticeCard}>
+            <Text style={styles.noticeTitle}>{noticeContent.title}</Text>
+            <Text style={styles.noticeMessage}>{noticeContent.message}</Text>
+            <TouchableOpacity 
+              onPress={() => setNoticeVisible(false)}
+              style={styles.noticeDismiss}
+            >
+              <Text style={styles.dismissText}>Close</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+      </Modal>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    // flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f0f2f5',
-  },
-  loaderContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#555',
-  },
-  mainContent: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  versionText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#777',
+    position: 'absolute',
+    zIndex: 9999,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(5, 15, 30, 0.9)', // Dark Premium Blur
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modalContent: {
-    width: '80%',
-    backgroundColor: 'white',
-    borderRadius: 15,
-    padding: 25,
+  modalCard: {
+    width: width * 0.85,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 30,
+    paddingTop: 60,
+    paddingBottom: 25,
+    paddingHorizontal: 24,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 5,
-    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 15,
   },
-  modalTitle: {
-    fontSize: 22,
+  iconContainer: {
+    position: 'absolute',
+    top: -50,
+    alignItems: 'center',
+  },
+  iconCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 6,
+    borderColor: '#FFFFFF',
+  },
+  textContainer: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#0A1D37',
+    textAlign: 'center',
+  },
+  badge: {
+    backgroundColor: '#E8F1FF',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginVertical: 12,
+  },
+  badgeText: {
+    color: GradientColor[1],
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  message: {
+    fontSize: 15,
+    color: '#556070',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 30,
+  },
+  buttonWrapper: {
+    width: '100%',
+  },
+  gradientButton: {
+    width: '100%',
+    paddingVertical: 16,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: GradientColor[1],
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontWeight: '900',
+    fontSize: 16,
+    letterSpacing: 1.5,
+  },
+  laterButton: {
+    marginTop: 20,
+    padding: 10,
+  },
+  laterText: {
+    color: '#A0AAB8',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  // Notice styles
+  noticeCard: {
+    width: width * 0.8,
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+  },
+  noticeTitle: {
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 10,
-    textAlign: 'center',
   },
-  modalMessage: {
+  noticeMessage: {
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
     marginBottom: 20,
-    lineHeight: 24,
   },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
+  noticeDismiss: {
+    paddingVertical: 10,
+    paddingHorizontal: 30,
+    borderRadius: 10,
+    backgroundColor: '#F5F7FA',
   },
-  button: {
-    paddingVertical: 12,
-    borderRadius: 25,
-    flex: 1,
-    marginHorizontal: 5,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  laterButton: {
-    backgroundColor: '#e0e0e0',
-  },
-  laterButtonText: {
-    color: '#666',
+  dismissText: {
+    color: GradientColor[1],
     fontWeight: 'bold',
-  },
-  forceUpdateButton: {
-    backgroundColor: Colors.nav,
-    width: '100%',
-  },
-  normalUpdateButton: {
-    backgroundColor: Colors.nav,
-  },
-  buttonText: {
-    minWidth:100,
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 16,
-    textAlign: 'center',
-  },
+  }
 });
 
 export default AppUpdateChecker;

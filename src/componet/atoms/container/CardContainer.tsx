@@ -1,7 +1,7 @@
 import { FC } from "react";
 import { IContainerProps } from "../Types/IContinerProps";
 import { FlexContainer, FlexRowContainer, FlexView } from "./FlexContainer";
-import { Image, StyleSheet, View } from "react-native";
+import { Image, StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import { CardLeftSlideColors, ESCardColor, ESColor } from "../res/EsColor";
 import { EsNormalText, EsSCardHeader, EsSmallHeader, EsSmallText } from "../EsText";
 import { EsButton } from "./EsButton";
@@ -69,6 +69,10 @@ export const EsChooseCard:FC<IEsChooseCard&{index:number,onPress:()=>any}> = (pr
             </FlexContainer>
         </EsCard>
     )
+}
+
+export const LineBreak = ({style}:{style?:StyleProp<ViewStyle>}) => { 
+    return <View style={[{borderTopWidth:1,borderColor:"gray",opacity:0.1,marginVertical:10},style]} />
 }
 
 
