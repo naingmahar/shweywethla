@@ -1,5 +1,5 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
-import DatePicker from 'react-native-date-picker'
+// import DatePicker from 'react-native-date-picker'
 import { IEsModelProps, IEsModelRefProps } from './Types/IModal'
 import { IEsPickerRefProps, IEsPrickerProps } from './Types/IDatePicker'
 import { EsTextInput, IEsTextInput } from './EsTextInput'
@@ -37,7 +37,7 @@ export const EsDatePickerComponet = ((props:IEsTextInput&{isPickup?:boolean,date
                 icon={props.icon||IconKey.calendar}
             />}
             
-            <DatePicker
+            {/* <DatePicker
                 modal
                 open={open}
                 date={props.date ? props.date:new Date()}
@@ -51,7 +51,7 @@ export const EsDatePickerComponet = ((props:IEsTextInput&{isPickup?:boolean,date
                 onCancel={() => {
                     setOpen(false)
                 }}
-            />
+            /> */}
         </FlexContainer>
     )
   })

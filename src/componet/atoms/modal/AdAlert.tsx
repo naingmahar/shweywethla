@@ -100,7 +100,7 @@ const AdAlert = ({ navigation }: any) => {
             <Text style={styles.message}>{adData.message}</Text>
 
             {/* Gradient Call to Action */}
-            <TouchableOpacity 
+            {/* <TouchableOpacity 
                 activeOpacity={0.85} 
                 onPress={handleAction}
                 style={styles.buttonShadow}
@@ -112,7 +112,7 @@ const AdAlert = ({ navigation }: any) => {
               >
                 <Text style={styles.actionButtonText}>LEARN MORE</Text>
               </LinearGradient>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
 
         </Animated.View>

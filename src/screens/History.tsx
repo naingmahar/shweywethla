@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, Image, Platform } from 'react-native';
 import { getDownloadedBooks, removeDownloadedBook } from '../services/downloadedBooksDB';
 import { IBookDownloaded } from '../types/models/IBook';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -8,6 +8,9 @@ import { Colors, GradientColor } from '../res/color';
 import { EsButton, GradientButton } from '../componet/atoms/container/EsButton';
 import { GradientContainer } from '../componet/atoms/container/GradientContainer';
 import EmptyLibraryScreen from '../componet/atoms/container/EmptyLibraryScreen';
+import { BannerAd, BannerAdSize, TestIds, useForeground } from 'react-native-google-mobile-ads';
+
+const adUnitId = __DEV__ ? TestIds.ADAPTIVE_BANNER : 'ca-app-pub-1353250294440692/6466150932';
 
 type HistoryScreenProps = NativeStackScreenProps<RootStackParamList, MainNav.History>;
 
@@ -29,6 +32,14 @@ export const History:React.FC<HistoryScreenProps> = ({navigation}) => {
   useEffect(() => {
     fetchDownloadedBooks();
   }, []);
+
+  const bannerRef = useRef<BannerAd>(null);
+    
+      // (iOS) WKWebView can terminate if app is in a "suspended state", resulting in an empty banner when app returns to foreground.
+      // Therefore it's advised to "manually" request a new ad when the app is foregrounded (https://groups.google.com/g/google-admob-ads-sdk/c/rwBpqOUr8m8).
+  useForeground(() => {
+    Platform.OS === 'ios' && bannerRef.current?.load();
+  });
 
   const renderItem = ({ item }:{item:IBookDownloaded}) => (
     <TouchableOpacity
@@ -69,8 +80,9 @@ export const History:React.FC<HistoryScreenProps> = ({navigation}) => {
     <View style={styles.container}>
     
       <GradientContainer style={styles.header}>
-          <Text style={styles.headerTitle}>Downloaded Books</Text>
+          <Text style={styles.headerTitle}>History</Text>
       </GradientContainer>
+      <BannerAd ref={bannerRef} unitId={adUnitId} size={BannerAdSize.LEADERBOARD} />
 
       {downloadedBooks.length === 0 ? (
         <EmptyLibraryScreen onBrowsePress={() => navigation.navigate(MainNav.Books, { category: 'Popular' })}/>
@@ -106,7 +118,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
-    marginBottom: 10,
+    // marginBottom: 10,
   },
   headerTitle: {
     fontSize: 18,

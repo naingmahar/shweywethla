@@ -13,6 +13,7 @@
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.1.0",
     "@react-native-community/checkbox": "^0.5.20",
+    "@react-native-community/netinfo": "^11.5.2",
     "@react-native-community/template": "0.82.1",
     "@react-native-firebase/analytics": "^21.7.1",
     "@react-native-firebase/app": "^21.7.1",
@@ -39,7 +40,6 @@
     "react-native-bouncy-checkbox": "^4.1.2",
     "react-native-calendars": "^1.1310.0",
     "react-native-chart-kit": "^6.12.0",
-    "react-native-date-picker": "^5.0.8",
     "react-native-device-info": "^14.0.2",
     "react-native-fs": "^2.20.0",
     "react-native-gesture-handler": "^2.29.1",

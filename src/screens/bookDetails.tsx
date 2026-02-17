@@ -1,5 +1,5 @@
-import React, { createRef, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import React, { createRef, useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import firestore from '@react-native-firebase/firestore';
@@ -21,14 +21,17 @@ import { Icon, IconKey } from '../componet/atoms/icons';
 import { RemoveSavedRecordAdWatch } from '../services/recordAdsWatch';
 import { isBookDownloaded } from '../services/downloadedBooksDB';
 import { getStoreUserInfo, StoreUserInfo } from '../features/storage/UserStorage';
+import { Storage } from '../features/storage/localstorage';
 import { deviceInfo } from '../utils/deviceInfo';
 import { Colors } from '../res/color';
+import { BannerAd, BannerAdSize, TestIds, useForeground } from 'react-native-google-mobile-ads';
 
 // Constants
-const { width } = Dimensions.get('window');
-const COVER_WIDTH = width * 0.6;
-const COVER_HEIGHT = COVER_WIDTH * 1.5;
+const COVER_WIDTH = 160;
+const COVER_HEIGHT = 220;
 const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
+
+const adUnitId = __DEV__ ? TestIds.ADAPTIVE_BANNER : 'ca-app-pub-1353250294440692/1557238259';
 
 type BookDetailsScreenProps = NativeStackScreenProps<RootStackParamList, MainNav.BookDeatils>;
 
@@ -153,6 +156,45 @@ const RegisterModal = React.forwardRef<IEsModelRefProps, RegisterModalProps>(
   )
 );
 
+// Star Rating Component
+interface StarRatingProps {
+  userRating: number;
+  averageRating: number;
+  ratingCount: number;
+  onRate: (stars: number) => void;
+  saving: boolean;
+}
+
+const StarRating: React.FC<StarRatingProps> = ({ userRating, averageRating, ratingCount, onRate, saving }) => (
+  <View style={ratingStyles.container}>
+    <View style={ratingStyles.starsRow}>
+      {[1, 2, 3, 4, 5].map((star) => (
+        <TouchableOpacity
+          key={star}
+          onPress={() => !saving && onRate(star)}
+          activeOpacity={0.7}
+          style={ratingStyles.starButton}
+        >
+          <Text style={[ratingStyles.star, { color: star <= userRating ? '#F5A623' : '#D0D0D0' }]}>
+            ★
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+    {ratingCount > 0 ? (
+      <Text style={ratingStyles.avgText}>
+        {averageRating.toFixed(1)} / 5  ({ratingCount} {ratingCount === 1 ? 'ဦး' : 'ဦး'} ထည့်သွင်းပြီး)
+      </Text>
+    ) : (
+      <Text style={ratingStyles.avgText}>ပထမဦးဆုံး Rating ပေးသူ ဖြစ်ပါ!</Text>
+    )}
+    {userRating > 0 && (
+      <Text style={ratingStyles.yourRating}>သင့်ရဲ့ Rating: {userRating} ★</Text>
+    )}
+    {saving && <Text style={ratingStyles.savingText}>သိမ်းနေသည်...</Text>}
+  </View>
+);
+
 const BookDetailsScreen: React.FC<BookDetailsScreenProps> = ({ route, navigation }) => {
   const book = route.params;
   const registerModalRef = createRef<IEsModelRefProps>();
@@ -162,7 +204,21 @@ const BookDetailsScreen: React.FC<BookDetailsScreenProps> = ({ route, navigation
   const [name, setName] = useState<string>('');
   const [gender, setGender] = useState<'Male' | 'Female' | 'Other' | ''>('');
 
+  // Rating state
+  const [userRating, setUserRating] = useState(0);
+  const [averageRating, setAverageRating] = useState(0);
+  const [ratingCount, setRatingCount] = useState(0);
+  const [savingRating, setSavingRating] = useState(false);
+
   const db = firestore();
+
+  const bannerRef = useRef<BannerAd>(null);
+
+  // (iOS) WKWebView can terminate if app is in a "suspended state", resulting in an empty banner when app returns to foreground.
+  // Therefore it's advised to "manually" request a new ad when the app is foregrounded (https://groups.google.com/g/google-admob-ads-sdk/c/rwBpqOUr8m8).
+  useForeground(() => {
+    Platform.OS === 'ios' && bannerRef.current?.load();
+  });
 
   // Validation
   if (!book) {
@@ -182,6 +238,84 @@ const BookDetailsScreen: React.FC<BookDetailsScreenProps> = ({ route, navigation
       RemoveSavedRecordAdWatch();
     };
   }, []);
+
+  // Load user's own rating from AsyncStorage (per book, instant, no network)
+  // Load average rating from Firestore (aggregate only)
+  useEffect(() => {
+    // 1. Load user rating from local storage
+    Storage.getItemByObjectOrArray<number>(`@bookRating_${book.id}`).then((saved) => {
+      if (saved !== null) setUserRating(saved);
+    });
+
+    // 2. Listen to aggregate average from Firestore (read-only)
+    const ratingDoc = db.collection('bookRatings').doc(book.id);
+    const unsubscribe = ratingDoc.onSnapshot((doc) => {
+      if (doc.exists) {
+        const data = doc.data();
+        const count = data?.ratingCount ?? 0;
+        const total = data?.totalRating ?? 0;
+        setRatingCount(count);
+        setAverageRating(count > 0 ? total / count : 0);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Handle star press — supports changing rating
+  const handleRate = async (stars: number) => {
+    if (stars === userRating) return; // tapped same star, nothing to do
+
+    const userData = await getStoreUserInfo();
+    if (!userData?.id) {
+      registerModalRef.current?.open();
+      return;
+    }
+
+    const previousStars = userRating; // snapshot before update
+    setSavingRating(true);
+    try {
+      // 1. Save to AsyncStorage (overwrite with new value)
+      await Storage.setItemByObjectOrArray(`@bookRating_${book.id}`, stars);
+      setUserRating(stars);
+
+      // 2. Update Firestore aggregate
+      const ratingDocRef = db.collection('bookRatings').doc(book.id);
+      await db.runTransaction(async (transaction) => {
+        const ratingSnap = await transaction.get(ratingDocRef);
+
+        if (ratingSnap.exists) {
+          const currentTotal = ratingSnap.data()?.totalRating ?? 0;
+          const currentCount = ratingSnap.data()?.ratingCount ?? 0;
+
+          if (previousStars > 0) {
+            // Changing existing rating: swap old stars for new stars, count stays same
+            transaction.update(ratingDocRef, {
+              totalRating: currentTotal - previousStars + stars,
+            });
+          } else {
+            // New rating: add stars, increment count
+            transaction.update(ratingDocRef, {
+              totalRating: currentTotal + stars,
+              ratingCount: currentCount + 1,
+            });
+          }
+        } else {
+          // First ever rating for this book
+          transaction.set(ratingDocRef, {
+            totalRating: stars,
+            ratingCount: 1,
+            bookId: book.id,
+            bookTitle: book.title,
+          });
+        }
+      });
+    } catch (error) {
+      console.error('Rating error:', error);
+    } finally {
+      setSavingRating(false);
+    }
+  };
 
 
 
@@ -238,7 +372,21 @@ const BookDetailsScreen: React.FC<BookDetailsScreenProps> = ({ route, navigation
 
   return (
     <ScrollView style={styles.container}>
-      <GradientHeader />
+      {/* Back Button */}
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => {
+          //@ts-ignore
+          const target = (book as any).fromTab === 'Notes' ? MainNav.Notes : MainNav.Books;
+          //@ts-ignore
+          navigation.navigate(target);
+        }}
+      >
+        <Icon icon={IconKey.back} size={24} className={{ color: '#7B5EC9' }} />
+      </TouchableOpacity>
+
+      {/* <GradientHeader /> */}
+      <BannerAd ref={bannerRef} unitId={adUnitId} size={BannerAdSize.LEADERBOARD} />
 
       <View style={styles.header}>
         <Image
@@ -249,11 +397,20 @@ const BookDetailsScreen: React.FC<BookDetailsScreenProps> = ({ route, navigation
         <Text style={styles.title}>{book.title}</Text>
         <Text style={styles.author}>by {book.author}</Text>
 
-        {book.samplePdfUrl && (
+        {/* Star Rating */}
+        <StarRating
+          userRating={userRating}
+          averageRating={averageRating}
+          ratingCount={ratingCount}
+          onRate={handleRate}
+          saving={savingRating}
+        />
+
+        {book.premium && (
           <GradientButton
             style={[styles.pdfButton, { marginTop: 20 }]}
             onPress={handleOpenPdf}
-            title={downloaded ? 'Read Now' : 'Download'}
+            title={'Read Now'}
           />
         )}
       </View>
@@ -282,6 +439,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F5F5F5',
   },
+  backButton: {
+    position: 'absolute',
+    top: 100,
+    left: 16,
+    zIndex: 10,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+  },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -295,6 +466,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     padding: 20,
     margin: 20,
+    marginTop:100,
     alignItems: 'center',
     borderRadius: 5,
     shadowColor: '#000',
@@ -304,35 +476,39 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   coverImage: {
-    marginTop: -100,
+    marginTop: -80,
     width: COVER_WIDTH,
     height: COVER_HEIGHT,
-    borderRadius: 20,
+    borderRadius: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    marginBottom: 15,
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    marginBottom: 12,
   },
   title: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: 'bold',
     textAlign: 'center',
     color: '#333',
   },
   author: {
-    fontSize: 18,
+    fontSize: 16,
     color: '#666',
     textAlign: 'center',
     marginTop: 5,
     lineHeight: 35,
   },
   pdfButton: {
-    paddingVertical: 15,
-    paddingHorizontal: 25,
+    paddingVertical: 0,
+    paddingHorizontal: 0,
     borderRadius: 30,
-    alignSelf: 'center',
-    marginBottom: 20,
+    minHeight: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    textAlign: 'center',
+    // alignSelf: 'center',
+    // marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
@@ -439,10 +615,17 @@ const styles = StyleSheet.create({
 
 const headerStyles = StyleSheet.create({
   container: {
-    backgroundColor: Colors.nav,
-    padding: 16,
-    paddingTop: 20,
+    // backgroundColor: Colors.nav,
+    // padding: 16,
+    // paddingTop: 20,
+    // alignContent:"center",
+    textAlign:"center",
+    justifyContent:"center",
+    alignItems:"center",
+    // borderBottomLeftRadius: 20,
+    // borderBottomRightRadius: 20,"
     shadowColor: '#000',
+    minHeight:60,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -456,6 +639,40 @@ const headerStyles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: 'white',
+  },
+});
+
+const ratingStyles = StyleSheet.create({
+  container: {
+    alignItems: 'center',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  starsRow: {
+    flexDirection: 'row',
+    marginBottom: 6,
+  },
+  starButton: {
+    paddingHorizontal: 4,
+  },
+  star: {
+    fontSize: 36,
+  },
+  avgText: {
+    fontSize: 13,
+    color: '#888',
+    marginTop: 2,
+  },
+  yourRating: {
+    fontSize: 12,
+    color: '#7B5EC9',
+    marginTop: 4,
+    fontWeight: '600',
+  },
+  savingText: {
+    fontSize: 12,
+    color: '#aaa',
+    marginTop: 2,
   },
 });
 

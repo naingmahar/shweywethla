@@ -329,8 +329,7 @@ import { BookPlayerView } from "./BookPlayerView";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { LineBreak } from "../../componet/atoms/container/CardContainer";
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { InstructionModal } from "../../componet/atoms/modal/InformationModal";
-import { TapHintOverlay } from "../../componet/atoms/TapHintOverlay";
+import { ReaderGuideModal } from "../../componet/atoms/modal/ReaderGuideModal";
 
 const { width, height } = Dimensions.get("window");
 
@@ -381,8 +380,9 @@ const ReaderFlatListWebView = ({path,title}:{path:string,title:string}) => {
   }, [currentPage, isLoaded, title]);
 
   const sendCommand = (prompt:"next"|"previous") => {
-    if(prompt ==  "next") setCurrentPage(current =>  current + 1);
-    else setCurrentPage(current =>  current - 1);
+    if (pages.length <= 1) return; // Disable navigation if single page
+    if(prompt ==  "next") setCurrentPage(current => Math.min(current + 1, pages.length - 1));
+    else setCurrentPage(current => Math.max(current - 1, 0));
   };
 
 
@@ -397,90 +397,163 @@ const ReaderFlatListWebView = ({path,title}:{path:string,title:string}) => {
           .map((p) => p.trim())
           .filter((p) => p.length > 0);
 
-        setPages(paragraphs);
-        const htmlPages = paragraphs.map((p) => {
+        const totalPages = paragraphs.length;
+        const htmlPages = paragraphs.map((p, index) => {
           let htmlText = p;
           htmlText = htmlText.replace(/--next--/g,"<br/>");
+          // Replace large inline rem font sizes with readable px values
+          htmlText = htmlText.replace(/font-size\s*:\s*3rem/gi,   'font-size: 20px');
+          htmlText = htmlText.replace(/font-size\s*:\s*2\.75rem/gi,'font-size: 18px');
+          htmlText = htmlText.replace(/font-size\s*:\s*2\.5rem/gi, 'font-size: 17px');
+          //  htmlText = htmlText.replace(/<br>/gi, '');
           return `
             <html>
               <head>
                 <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
               <style>
-                /* This ensures blockquotes look good even if the CSS file fails to load */
-                blockquote {
-                  margin: 20px 10px;
-                  padding: 10px 20px;
-                  border-left: 5px solid ${enabled ? '#555' : '#ccc'};
-                  font-style: italic;
-                  // background-color: ${enabled ? '#1e1e1e' : '#f9f9f9'};
-                  // color: ${enabled ? '#ddd' : '#555'};
-                }
-                pre {
-                  background-color: ${!enabled ? '#2b3440' : '#f8f8f8'};
-                  color: ${!enabled ? '#f0f0f0' : '#d14'};
-                  padding: 20px;
-                  border-radius: 15px;
-                  font-family: "Courier New", Courier, monospace;
-                  font-size: 2rem;
-                  border: 1px solid ${enabled ? '#333' : '#ddd'};
-                  
-                  /* --- Force Next Line (Wrapping) --- */
-                  white-space: pre-wrap;       /* CSS3 */
-                  white-space: -moz-pre-wrap;  /* Firefox */
-                  white-space: -pre-wrap;      /* Opera 4-6 */
-                  white-space: -o-pre-wrap;    /* Opera 7 */
-                  word-wrap: break-word;
+                * {
+                  box-sizing: border-box;
+                  -webkit-tap-highlight-color: transparent;
                 }
                 body {
-                  font-family: sans-serif; /* Prevents default serif look if desired */
-                  line-height:1.7; 
-                  margin:0; 
-                  padding:20px; 
-                  font-size:2.3rem; 
-                  font-family:-apple-system, Roboto, sans-serif; 
-                  padding-bottom: 120px;
+                  font-family: -apple-system, Roboto, sans-serif;
+                  font-size: 17px;
+                  line-height: 1.85;
+                  color: #2c2c2c;
+                  margin: 0;
+                  padding: 16px 8px 80px 8px;
+                  background-color: #fcf7ea;
+                  word-break: break-word;
+                  text-align: justify;
+                  -webkit-hyphens: auto;
+                  hyphens: auto;
                 }
-                body p{
-                    margin-bottom: 50px;
+                .page-header {
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  padding-bottom: 8px;
+                  margin-bottom: 20px;
+                  border-bottom: 1px solid #d0c9b5;
+                  font-size: 14px;
+                  color: #999;
                 }
-                img { 
-                    max-width:100%; 
-                    margin:15px 0; 
-                    border-radius:10px; 
+                .page-header .book-title {
+                  flex: 1;
+                  white-space: nowrap;
+                  overflow: hidden;
+                  text-overflow: ellipsis;
+                  font-style: italic;
+                  margin-right: 12px;
+                  font-weight: 700;
                 }
-                .txt-center{
-                    text-align: center;
-                    width: 100%;
+                .page-header .page-num {
+                  font-weight: 700;
+                  color: #777;
+                  white-space: nowrap;
                 }
-
-                .full-width{
-                    width: 100vw;
+                p {
+                  margin: 0 0 16px 0;
+                  text-align: justify;
                 }
-
-                h3{
+                h1 {
+                  font-size: 20px;
+                  font-weight: 700;
+                  color: #1a1a1a;
+                  margin: 20px 0 10px 0;
+                  line-height: 1.4;
                   text-align: center;
                 }
-
-                bi{
-                    font-weight: bold;
-                    font-style: italic;
+                h2 {
+                  font-size: 18px;
+                  font-weight: 700;
+                  color: #222;
+                  margin: 18px 0 10px 0;
+                  line-height: 1.4;
+                  text-align: center;
                 }
-
-                bic{
-                    font-weight: bold;
-                    font-style: italic;
-                    text-align: center;
+                h3 {
+                  font-size: 17px;
+                  font-weight: 700;
+                  color: #333;
+                  margin: 16px 0 8px 0;
+                  line-height: 1.4;
+                  text-align: center;
                 }
-
-                c{
-                    text-align: center;
+                h4 {
+                  font-size: 16px;
+                  font-weight: 600;
+                  color: #444;
+                  margin: 14px 0 6px 0;
+                  line-height: 1.4;
                 }
+                h5 {
+                  font-size: 15px;
+                  font-weight: 600;
+                  color: #555;
+                  margin: 12px 0 6px 0;
+                  line-height: 1.4;
+                }
+                h6 {
+                  font-size: 14px;
+                  font-weight: 600;
+                  color: #666;
+                  margin: 10px 0 4px 0;
+                  line-height: 1.4;
+                  font-style: italic;
+                }
+                blockquote {
+                  margin: 16px 0;
+                  padding: 12px 16px;
+                  border-left: 4px solid ${enabled ? '#555' : '#c8b99a'};
+                  background-color: ${enabled ? '#1e1e1e' : '#f3ede0'};
+                  color: ${enabled ? '#ddd' : '#555'};
+                  font-style: italic;
+                  border-radius: 0 8px 8px 0;
+                }
+                pre {
+                  background-color: #2b3440;
+                  color: #f0f0f0;
+                  padding: 16px;
+                  border-radius: 10px;
+                  font-family: "Courier New", Courier, monospace;
+                  font-size: 14px;
+                  margin: 16px 0;
+                  white-space: pre-wrap;
+                  word-wrap: break-word;
+                }
+                img {
+                  max-width: 100%;
+                  height: auto;
+                  margin: 16px 0;
+                  border-radius: 10px;
+                  display: block;
+                }
+                bi {
+                  font-weight: bold;
+                  font-style: italic;
+                }
+                bic {
+                  display: block;
+                  font-weight: bold;
+                  font-style: italic;
+                  text-align: center;
+                }
+                c {
+                  display: block;
+                  text-align: center;
+                }
+                .txt-center { text-align: center; }
+                .full-width { width: 100%; }
               </style>
               </head>
-              <body style="background-color:#fcf7ea">
-                <p style="padding-top:50px;padding-bottom:10px">
-                    ${htmlText}
-                </p>
+              <body>
+                <div class="page-header">
+                  <span class="book-title">${title}</span>
+                  <span class="page-num">${index + 1} / ${totalPages}</span>
+                </div>
+                ${htmlText}
               </body>
             </html>
           `;
@@ -497,11 +570,41 @@ const ReaderFlatListWebView = ({path,title}:{path:string,title:string}) => {
 
   const htmlModelRef = createRef<IEsModelRefProps>();
   const navigation = useNavigation();
+  const totalPages = pages.length;
   const INJECTED_JAVASCRIPT = `
-        // Target the entire body and apply unselectable styles
+        // Disable text selection
         document.body.style.userSelect = 'none';
         document.body.style.webkitUserSelect = 'none';
         document.body.style.webkitTouchCallout = 'none';
+
+        var totalPages = ${totalPages};
+        var touchStartX = 0;
+        var touchStartY = 0;
+
+        document.addEventListener('touchstart', function(e) {
+          touchStartX = e.touches[0].clientX;
+          touchStartY = e.touches[0].clientY;
+        }, { passive: true });
+
+        document.addEventListener('touchend', function(e) {
+          // If only one page, do nothing
+          if (totalPages <= 1) return;
+
+          var touchEndX = e.changedTouches[0].clientX;
+          var touchEndY = e.changedTouches[0].clientY;
+          var diffX = Math.abs(touchEndX - touchStartX);
+          var diffY = Math.abs(touchEndY - touchStartY);
+
+          // Only navigate if it was a tap (not a scroll)
+          if (diffX < 10 && diffY < 10) {
+            var screenWidth = window.innerWidth;
+            if (touchStartX < screenWidth / 2) {
+              window.ReactNativeWebView.postMessage('previous');
+            } else {
+              window.ReactNativeWebView.postMessage('next');
+            }
+          }
+        }, { passive: true });
         true;
     `;
 
@@ -523,19 +626,20 @@ const ReaderFlatListWebView = ({path,title}:{path:string,title:string}) => {
             style={styles.webview}
             javaScriptEnabled
             domStorageEnabled
+            scalesPageToFit={false}
             injectedJavaScript={INJECTED_JAVASCRIPT}
+            onMessage={(event) => {
+              const msg = event.nativeEvent.data;
+              if (msg === 'next') sendCommand('next');
+              else if (msg === 'previous') sendCommand('previous');
+            }}
           />
       </BookPlayerView>
 
-      {/* <InstructionModal 
-        visible={showGuide} 
-        onClose={() => setShowGuide(false)} 
-        isDarkMode={enabled} 
-      /> */}
-
-      {showGuide && (
-        <TapHintOverlay onFinished={() => setShowGuide(false)} />
-      )}
+      <ReaderGuideModal
+        visible={showGuide}
+        onClose={() => setShowGuide(false)}
+      />
 
         <EsModel ref={htmlModelRef}>
           <FlexContainer noneBasicStyle fullWidth fullFlex>

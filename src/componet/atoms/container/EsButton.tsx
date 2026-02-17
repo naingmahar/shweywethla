@@ -10,6 +10,7 @@ export const GradientButton:FC<IEsButtonProps> =(props) => {
   return (
     <TouchableOpacity disabled={props.isDisible}  onPress={props.onPress} 
     style={[
+            {alignSelf: 'stretch'},
             props.isDisible||props.loading?styles.isDisible:{},
             props.loading?styles.loading:{}
         ]}>
@@ -50,9 +51,11 @@ const styles = StyleSheet.create({
         paddingVertical:18,
         borderRadius:30,
         margin:10,
+        minHeight: 56,
         justifyContent:"center",
         alignItems:"center",
-        backgroundColor:Colors.infoCard
+        flexDirection: "row",
+        // backgroundColor:Colors.infoCard
     },
     quizBase:{
         paddingHorizontal:10,

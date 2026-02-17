@@ -14,6 +14,7 @@ import BookListScreen from '../screens/books';
 import { MainNav } from './main.nav';
 import LinearGradient from 'react-native-linear-gradient';
 import BookRoute from './book.nav';
+import NoteRoute from './note.nav';
 import Dashboard from '../screens/dashboard';
 
 const Tab = createBottomTabNavigator();
@@ -27,6 +28,7 @@ function MyTabBar({ state, descriptors, navigation }:any) {
         const temp = {
             Dashboard:IconKey.dashboard,
             Books:IconKey.book,
+            Notes:IconKey.document,
             History:IconKey.calendar,
             Setting:IconKey.setting
         }
@@ -108,14 +110,15 @@ function MyTabBar({ state, descriptors, navigation }:any) {
   
 export function BottomTabs() {
   return (
-    <Tab.Navigator 
+    <Tab.Navigator
       screenOptions={{
         headerShown:false,
-      }}  
+      }}
       tabBar={(props) => <MyTabBar {...props} />}
     >
         <Tab.Screen name={MainNav.Dashboard} component={DashboardScreen} />
         <Tab.Screen name={MainNav.Books} component={BookRoute} />
+        <Tab.Screen name={MainNav.Notes} component={NoteRoute} />
         {/* <Tab.Screen name="Helper" component={HelperPage} /> */}
         <Tab.Screen name={MainNav.History} component={History} />
         <Tab.Screen name="Setting" component={Setting} />

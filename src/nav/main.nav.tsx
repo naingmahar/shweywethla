@@ -42,6 +42,7 @@ export enum MainNav  {
   deleteAccount="Delete Account",
   Reader="Reader",
   Books="Books",
+  Notes="Notes",
   BookDeatils="BookDetails",
   History="History",
   PdfReader="PdfReader",
@@ -68,8 +69,9 @@ export type RootStackParamList = {
   "TextReader":IBook,
   "HtmlReader":IBook,
   "Books":{category:string},
+  "Notes":{category:string},
   "BookList":{category:string},
-  "BookDetails":IBook,
+  "BookDetails":IBook & { fromTab?: 'Books' | 'Notes' },
   "History":any,
   "Dashboard":any
 };

@@ -1,19 +1,20 @@
-import React, { use, useEffect, useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
-  TextInput, 
-  TouchableOpacity, 
+import React, { use, useEffect, useRef, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
   FlatList,
   Image,
   ListRenderItem,
   Dimensions,
   ImageBackground,
-  Linking
+  Linking,
+  Platform,
+  ActivityIndicator
 } from 'react-native';
-import firestore, { addDoc, collection, or, orderBy, query, where } from '@react-native-firebase/firestore';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Carousel from "react-native-reanimated-carousel";
 import type { ICarouselInstance } from "react-native-reanimated-carousel";
@@ -22,11 +23,10 @@ import { CategoryIcon, TechnologyIcon } from '../componet/atoms/SVG';
 import { GradientColor } from '../res/color';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MainNav, RootStackParamList } from '../nav/main.nav';
-import { DatabaseReference, firebase, onValue, ref } from '@react-native-firebase/database';
-// Assuming you would use an icon library like react-native-vector-icons
-// import Icon from 'react-native-vector-icons/Ionicons'; 
+import { BannerAd, BannerAdSize, TestIds, useForeground } from 'react-native-google-mobile-ads';
+import { useDashboardContext } from '../context/DashboardContext';
 
-const db = firestore();
+const adUnitId = __DEV__ ? TestIds.ADAPTIVE_BANNER : 'ca-app-pub-1353250294440692/9431225625';
 
 // --- COLOR PALETTE (Hex Codes) ---
 const COLORS = {
@@ -57,97 +57,24 @@ const data = [
  
 type DashboardScreenProps = NativeStackScreenProps<RootStackParamList, MainNav.Dashboard>;
 
-const database = firebase
-  .app()
-  .database('https://shweywethla-49cb4-default-rtdb.asia-southeast1.firebasedatabase.app/')
-
-
 const Dashboard: React.FC<DashboardScreenProps> = (props) => {
-
   const cRef = React.useRef<ICarouselInstance>(null);
-  const [books, setBooks] = useState<IBook[]>([]);
-  const [commingBooks, setCommingBooks] = useState<IBook[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
-  const [carousel,setCarousel] = useState<{image:string,url:string}[]>([])
+  const bannerRef = useRef<BannerAd>(null);
 
-  const appRef: DatabaseReference = ref(database, `ads`);
+  // Use cached data from context instead of fetching
+  const {
+    books,
+    notes,
+    commingBooks,
+    categories,
+    carousel,
+    isLoading,
+    refreshData
+  } = useDashboardContext();
 
-  useEffect(() => {
-    const unsubscribe = onValue(appRef, (snapshot) => {
-    const data = snapshot.val();
-    console.log("Fetched app config:", data ,typeof data);
-    if (data) {
-      setCarousel(data)
-    }
-    }, (error) => {
-      console.error("Firebase fetch failed:", error);
-    });
-
-    return () => unsubscribe();
-  },[]);
-
-  useEffect(() => { 
-    const booksRef = db.collection('Books') 
-    const q = query(booksRef,where("premium_type","==","html") ,orderBy("popularRating","desc") ); 
-    const subscriber = q.onSnapshot(querySnapshot => { 
-      const booksList:IBook[] = [];
-      console.log("Total books: ", querySnapshot.size);
-      querySnapshot.forEach(doc => {
-        const data = doc.data();
-        booksList.push({
-          id: doc.id,
-         ...data
-        } as IBook);
-      });
-      setBooks(booksList);
-    }, error => {
-      console.log("Error fetching documents: ", error);
-     })
-  },[])
-
-  useEffect(() => { 
-    const booksRef = db.collection('Books') 
-    const q = query(booksRef,where("premium_type","==","Comming_Soon")); 
-    const subscriber = q.onSnapshot(querySnapshot => { 
-      const booksList:IBook[] = [];
-      console.log("Total books: ", querySnapshot.size);
-      querySnapshot.forEach(doc => {
-        const data = doc.data();
-        booksList.push({
-          id: doc.id,
-         ...data
-        } as IBook);
-      });
-      setCommingBooks(booksList);
-    }, error => {
-      console.log("Error fetching documents: ", error);
-     })
-  },[])
-
-  useEffect(() => {
-    // Get a reference to the 'books' collection
-    const booksRef = db.collection('categories').orderBy("label","asc");
-
-    // Fetch the data and set up a real-time listener
-    const subscriber = booksRef.onSnapshot(querySnapshot => {
-      const categories:{id:string,label:string,key:string}[] = [];
-      querySnapshot.forEach(doc => {
-        const data = doc.data();
-        categories.push({
-          id: doc.id,
-         ...data
-        } as {id:string,label:string,key:string});
-      });
-      setCategories(categories.map(cat=>cat.key));
-      // setLoading(false);
-    }, error => {
-      console.error("Error fetching documents: ", error);
-      // setLoading(false);
-    });
-
-    // Unsubscribe from the listener when the component unmounts
-    return () => subscriber();
-  }, []);
+  useForeground(() => {
+    Platform.OS === 'ios' && bannerRef.current?.load();
+  });
 
 
 
@@ -186,6 +113,18 @@ const Dashboard: React.FC<DashboardScreenProps> = (props) => {
   const openAnyUrl = (url: string): void => {
     Linking.openURL(url).catch(err => console.error("Couldn't load page", err));
   };
+
+  // Show loading indicator while data is being fetched
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color={COLORS.PRIMARY} />
+          <Text style={styles.loadingText}>Loading dashboard...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -240,17 +179,29 @@ const Dashboard: React.FC<DashboardScreenProps> = (props) => {
 
         {/* <SearchBar /> */}
         {/* Trending Books Section */}
-        <Text style={styles.sectionTitle}>Trending Books</Text>
+
+                {/* Trending Books Section */}
+        <Text style={styles.sectionTitle}>Short Notes</Text>
         <FlatList
           horizontal
-          data={books}
-          renderItem={(item)=>renderBook({...item,...{isEnable:true}})} 
+          data={notes}
+          renderItem={renderBook}
           keyExtractor={(item) => item.id}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.bookList}
         />
 
-        {/* Trending Books Section */}
+
+        <Text style={styles.sectionTitle}>Trending Books</Text>
+        <FlatList
+          horizontal
+          data={books}
+          renderItem={(item)=>renderBook({...item,...{isEnable:true}})}
+          keyExtractor={(item) => item.id}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.bookList}
+        />
+
         <Text style={styles.sectionTitle}>Comming Soon Books</Text>
         <FlatList
           horizontal
@@ -260,6 +211,8 @@ const Dashboard: React.FC<DashboardScreenProps> = (props) => {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.bookList}
         />
+
+         <BannerAd ref={bannerRef} unitId={adUnitId} size={BannerAdSize.INLINE_ADAPTIVE_BANNER} />
 
       </ScrollView>
 
@@ -282,6 +235,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     marginTop:10
+  },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: COLORS.TEXT_MEDIUM,
   },
   headerTitle: {
     fontSize: 28,

@@ -39,6 +39,9 @@ import { Colors } from './src/res/color';
 import AppUpdateChecker from './src/componet/atoms/AppUpdateChecker';
 import AdAlert from './src/componet/atoms/modal/AdAlert';
 import { notificationListener, requestUserPermission } from './src/services/NotificationService';
+import { DashboardProvider } from './src/context/DashboardContext';
+import { VPNSuggestion } from './src/componet/atoms/modal/VPNSuggestion';
+import { RatingRequest, trackAppSession } from './src/componet/atoms/modal/RatingRequest';
 
 type SectionProps = PropsWithChildren<{
   title: string;
@@ -83,6 +86,9 @@ function App(): React.JSX.Element {
       setTimeout(()=>{
         SplashScreen.hide();
       },3000)
+
+    // Track app session for rating request
+    trackAppSession()
   },[])
 
   useEffect(() => {
@@ -96,8 +102,8 @@ function App(): React.JSX.Element {
         barStyle={isDarkMode ? 'light-content' : 'dark-content'}
         backgroundColor={ isDarkMode ? "white" : "white" }
       />
-      <PersistQueryClientProvider 
-        client={queryClient}  
+      <PersistQueryClientProvider
+        client={queryClient}
         persistOptions={{ persister: asyncStoragePersister }}
         onSuccess={()=>{
           console.log("STORE")
@@ -105,11 +111,15 @@ function App(): React.JSX.Element {
       >
         <AppUpdateChecker />
         <AdAlert  />
+        <VPNSuggestion />
+        <RatingRequest />
         {/* <RecoilRoot> */}
         <Provider>
-          <NavigationContainer>
-            <AppRoute />
-          </NavigationContainer>
+          <DashboardProvider>
+            <NavigationContainer>
+              <AppRoute />
+            </NavigationContainer>
+          </DashboardProvider>
         </Provider>
         {/* </RecoilRoot> */}
       </PersistQueryClientProvider>

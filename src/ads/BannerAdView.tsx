@@ -6,10 +6,16 @@ interface BannerAdProps {
   style?: ViewStyle;
 }
 
-const BANNER_AD_UNIT_ID = Platform.select({
-  ios: 'YOUR_IOS_BANNER_ID',
-  android: 'YOUR_ANDROID_BANNER_ID',
-}) || '';
+// TODO: Replace with your real AppLovin MAX Banner Ad Unit IDs from dashboard
+const BANNER_AD_UNIT_ID = __DEV__
+  ? Platform.select({
+      ios: 'YOUR_IOS_TEST_BANNER_ID',  // AppLovin MAX test banner ID for iOS
+      android: 'YOUR_ANDROID_TEST_BANNER_ID',  // AppLovin MAX test banner ID for Android
+    }) || ''
+  : Platform.select({
+      ios: 'YOUR_IOS_PRODUCTION_BANNER_ID',  // Your real iOS banner ID from AppLovin
+      android: 'YOUR_ANDROID_PRODUCTION_BANNER_ID',  // Your real Android banner ID from AppLovin
+    }) || '';
 
 const BannerAdView: React.FC<BannerAdProps> = ({ style }) => {
   return (
