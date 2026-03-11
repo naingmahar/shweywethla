@@ -559,6 +559,8 @@ const ReaderFlatListWebView = ({path,title}:{path:string,title:string}) => {
           `;
         });
 
+        console.log(htmlPages)
+
         setPages(htmlPages);
       } catch (err) {
         console.error(err);

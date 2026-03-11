@@ -21,10 +21,10 @@ class MainActivity : ReactActivity() {
         SplashScreen.show(this)
     super.onCreate(savedInstanceState)
     // Set the FLAG_SECURE to prevent screenshots and screen recordings
-    window.setFlags(
-      WindowManager.LayoutParams.FLAG_SECURE,
-      WindowManager.LayoutParams.FLAG_SECURE
-    )
+    // window.setFlags(
+    //   WindowManager.LayoutParams.FLAG_SECURE,
+    //   WindowManager.LayoutParams.FLAG_SECURE
+    // )
   }
 
   /**
