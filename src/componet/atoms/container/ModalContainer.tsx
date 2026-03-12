@@ -1,8 +1,9 @@
-import { FC, ForwardedRef, forwardRef, useImperativeHandle, useState } from "react"
-import { Modal, Pressable, StyleSheet, View } from "react-native"
+import { forwardRef, useImperativeHandle, useState } from "react"
+import { Modal, Pressable, StyleSheet } from "react-native"
 
 export interface IEsModelProps{
     children:any
+    closeOnBackdropPress?: boolean
 }
 
 export interface IEsModelRefProps{
@@ -15,24 +16,23 @@ export const EsModel = forwardRef<IEsModelRefProps,IEsModelProps>((props,modalRe
 
     useImperativeHandle(modalRef, () => {
         return {
-          open() {
-            open(true);
-          },
-          close() {
-            open(false);
-          },
+          open() { open(true); },
+          close() { open(false); },
         };
       }, []);
 
-      
         return(
-            <Modal 
+            <Modal
                 animationType="fade"
                 transparent={true}
                 visible={visible}
-                
                 >
-                    <Pressable onPress={()=>{open(false)}} style={styles.base}>
+                    <Pressable
+                        onPress={() => {
+                            if (props.closeOnBackdropPress !== false) open(false);
+                        }}
+                        style={styles.base}
+                    >
                         {props.children}
                     </Pressable>
             </Modal>
@@ -42,9 +42,9 @@ export const EsModel = forwardRef<IEsModelRefProps,IEsModelProps>((props,modalRe
 
 const styles = StyleSheet.create({
     base:{
-        flex: 1, 
-        alignItems: 'center', 
-        justifyContent: 'center', 
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
         backgroundColor: 'rgba(0,0,0,0.8)'
     }
 })

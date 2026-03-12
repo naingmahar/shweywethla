@@ -11,12 +11,16 @@ import {
 } from "react-native";
 import RNFS from "react-native-fs";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useAtom } from "jotai";
+import { darkModeAtom } from "../../features/jotai/model/darkMode";
 
 const { width, height } = Dimensions.get("window");
 
 const TextReaderPage = ({path}:{path:string}) => {
   const [pages, setPages] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
+  const [darkMode] = useAtom(darkModeAtom);
+  const enabled = darkMode ?? false;
 
   const flatListRef = useRef<FlatList<string>>(null);
 
@@ -48,33 +52,31 @@ const TextReaderPage = ({path}:{path:string}) => {
   };
 
   const renderItem = ({ item }: { item: string }) => {
-        // 🧹 Clean up line breaks
     const cleanText = item
-      .replace(/\r?\n|\r/g, " ")  // remove enters
-      .replace(/\s{2,}/g, " ");   // collapse spaces
+      .replace(/\r?\n|\r/g, " ")
+      .replace(/\s{2,}/g, " ");
 
-    // Split into paragraphs by ---
     const paragraphs = cleanText
       .split("---")
       .map((p) => p.trim())
       .filter((p) => p.length > 0);
 
     return (
-        <View style={styles.page}>
+      <View style={[styles.page, enabled ? styles.pageDark : styles.pageLight]}>
         <ScrollView showsVerticalScrollIndicator={false}>
-            <Text style={styles.paragraph}>{
-            paragraphs.toString().replace(/--next--/g,"\n")
-            }</Text>
+          <Text style={[styles.paragraph, enabled ? styles.paragraphDark : styles.paragraphLight]}>
+            {paragraphs.toString().replace(/--next--/g, "\n")}
+          </Text>
         </ScrollView>
-        </View>
+      </View>
     );
-};
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, enabled ? styles.containerDark : styles.containerLight]}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>📖 My Book Title</Text>
+      <View style={[styles.header, enabled ? styles.headerDark : styles.headerLight]}>
+        <Text style={[styles.title, enabled ? styles.titleDark : styles.titleLight]}>My Book Title</Text>
       </View>
 
       {/* Reader Pages */}
@@ -90,8 +92,8 @@ const TextReaderPage = ({path}:{path:string}) => {
       />
 
       {/* Footer */}
-      <View style={styles.footer}>
-        <Text style={styles.pageNumber}>
+      <View style={[styles.footer, enabled ? styles.footerDark : styles.footerLight]}>
+        <Text style={[styles.pageNumber, enabled ? styles.pageNumberDark : styles.pageNumberLight]}>
           Page {currentPage + 1} / {pages.length}
         </Text>
       </View>
@@ -100,49 +102,38 @@ const TextReaderPage = ({path}:{path:string}) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
+  container: { flex: 1 },
+  containerLight: { backgroundColor: "#fcf7ea" },
+  containerDark: { backgroundColor: "#121212" },
+
   header: {
     height: 50,
     justifyContent: "center",
     alignItems: "center",
     borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
   },
-  title: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  page: {
-    width,
-    // minHeight: height - 110, // leave space for header + footer
-    padding: 20,
-    // paddingBottom: 40,
-    marginVertical: 10,
-    // justifyContent: "center",
-    // alignItems: "center",
-  },
-  paragraph: {
-    fontSize: 18,
-    fontWeight: "600",
-    lineHeight:40,
-     color: "#333",
-    textAlign: "auto",
-  },
-  footer: {
-    height: 50,
-    justifyContent: "center",
-    alignItems: "center",
-    borderTopWidth: 1,
-    borderTopColor: "#ddd",
-  },
-  pageNumber: {
-    fontSize: 16,
-    color: "#666",
-  },
+  headerLight: { backgroundColor: "#fcf7ea", borderBottomColor: "#ddd" },
+  headerDark:  { backgroundColor: "#1e1e1e", borderBottomColor: "#333" },
+
+  title: { fontSize: 20, fontWeight: "bold" },
+  titleLight: { color: "#333" },
+  titleDark:  { color: "#e1e1e1" },
+
+  page: { width, padding: 20, marginVertical: 10 },
+  pageLight: { backgroundColor: "#fcf7ea" },
+  pageDark:  { backgroundColor: "#121212" },
+
+  paragraph: { fontSize: 18, fontWeight: "600", lineHeight: 40, textAlign: "auto" },
+  paragraphLight: { color: "#333" },
+  paragraphDark:  { color: "#e1e1e1" },
+
+  footer: { height: 50, justifyContent: "center", alignItems: "center", borderTopWidth: 1 },
+  footerLight: { backgroundColor: "#fcf7ea", borderTopColor: "#ddd" },
+  footerDark:  { backgroundColor: "#1e1e1e", borderTopColor: "#333" },
+
+  pageNumber: { fontSize: 16 },
+  pageNumberLight: { color: "#666" },
+  pageNumberDark:  { color: "#aaa" },
 });
 
 export default TextReaderPage;

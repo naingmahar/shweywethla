@@ -3,4 +3,7 @@ export enum JotaiPersistenceKey {
     user= "@User",
     info="@Info",
     book="@Book",
+    darkMode="@DarkMode",
+    fontSize="@FontSize",
+    landscapeMode="@LandscapeMode",
 }

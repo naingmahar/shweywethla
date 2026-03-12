@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install react-native-orientation-locker --legacy-peer-deps)"
+    ]
+  }
+}

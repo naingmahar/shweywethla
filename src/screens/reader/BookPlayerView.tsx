@@ -239,7 +239,7 @@ export const BookPlayerView: FC<{
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: 'transparent' },
   leftTapZone: {
     position: 'absolute',
     left: 0,
