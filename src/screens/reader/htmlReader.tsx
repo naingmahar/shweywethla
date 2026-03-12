@@ -122,7 +122,7 @@ function buildPageHtml(content: string, title: string, pageIndex: number, totalP
 }
 
 const BUTTON_SIZE = 44;
-const BTN_MARGIN = 20;
+const BTN_MARGIN = 30; // Increased margin to prevent button from "hiding" in corners
 
 const ReaderFlatListWebView = ({path, title}: {path: string; title: string}) => {
   // Raw paragraphs only — no HTML wrapping stored in state.
@@ -165,23 +165,31 @@ const ReaderFlatListWebView = ({path, title}: {path: string; title: string}) => 
   // (edges left/right/bottom). Its coordinate space width is therefore:
   //   containerWidth = winWidth - insets.left - insets.right
   // Using winWidth directly was the bug — the button went ~insets.left px off-screen.
+  const isLandscapeNow = winWidth > winHeight;
+  const activeMargin = isLandscapeNow ? BTN_MARGIN * 1.5 : BTN_MARGIN;
+
   const containerWidth  = winWidth  - insets.left - insets.right;
-  const containerHeight = winHeight - insets.top  - insets.bottom;
+  const containerHeight = winHeight - insets.bottom; // SafeAreaView edges only bottom for height
 
-  // Right-side only: button always snaps to the right edge, never the left.
-  const btnSnapX = containerWidth - BUTTON_SIZE - BTN_MARGIN;
-  const btnMinY  = BTN_MARGIN;
-  const btnMaxY  = containerHeight - BUTTON_SIZE - BTN_MARGIN;
+  // Horizontal snap targets
+  const snapLeftX = activeMargin;
+  const snapRightX = containerWidth - BUTTON_SIZE - activeMargin;
 
-  const btnX = useSharedValue(btnSnapX);
-  const btnY = useSharedValue(containerHeight * 0.75);
+  const btnMinY  = insets.top + activeMargin;
+  const btnMaxY  = containerHeight - BUTTON_SIZE - activeMargin;
+
+  // sidePreference: 0 for left, 1 for right. Default to right (1).
+  const sidePreference = useSharedValue(1); 
+  const btnX = useSharedValue(snapRightX);
+  const btnY = useSharedValue(containerHeight * 0.7);
   const btnContext = useSharedValue({ x: 0, y: 0 });
 
   // Re-clamp when orientation flips or safe-area insets change
   useEffect(() => {
-    btnX.value = withSpring(btnSnapX);
+    const targetX = sidePreference.value === 0 ? snapLeftX : snapRightX;
+    btnX.value = withSpring(targetX);
     btnY.value = withSpring(Math.max(btnMinY, Math.min(btnY.value, btnMaxY)));
-  }, [btnSnapX, btnMinY, btnMaxY]);
+  }, [snapLeftX, snapRightX, btnMinY, btnMaxY, sidePreference]);
 
   const openSettingsModal = useCallback(() => {
     htmlModelRef.current?.open();
@@ -191,7 +199,7 @@ const ReaderFlatListWebView = ({path, title}: {path: string; title: string}) => 
   const tapGesture = Gesture.Tap()
     .onEnd(() => { runOnJS(openSettingsModal)(); });
 
-  // Pan gesture — drag freely, always snaps back to right edge on release
+  // Pan gesture — drag freely, snaps to NEAREST horizontal edge on release
   const panGesture = Gesture.Pan()
     .minDistance(10)
     .onStart(() => {
@@ -202,8 +210,13 @@ const ReaderFlatListWebView = ({path, title}: {path: string; title: string}) => 
       btnY.value = btnContext.value.y + e.translationY;
     })
     .onEnd(() => {
-      // Always snap back to the right edge
-      btnX.value = withSpring(btnSnapX);
+      // Snap to the nearest edge
+      const snapToLeft = btnX.value < containerWidth / 2;
+      sidePreference.value = snapToLeft ? 0 : 1;
+      
+      const targetX = snapToLeft ? snapLeftX : snapRightX;
+      btnX.value = withSpring(targetX);
+
       // Clamp Y within safe vertical bounds
       btnY.value = withSpring(Math.max(btnMinY, Math.min(btnMaxY, btnY.value)));
     });
@@ -350,7 +363,6 @@ const ReaderFlatListWebView = ({path, title}: {path: string; title: string}) => 
   `, [paragraphs.length]);
 
   const themeBg = enabled ? '#121212' : '#fcf7ea';
-  const isLandscapeNow = winWidth > winHeight;
 
   // Show loading screen while the file is being read from disk
   if (isFileLoading) {
