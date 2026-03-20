@@ -1,7 +1,14 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm install react-native-orientation-locker --legacy-peer-deps)"
+      "Bash(npm install react-native-orientation-locker --legacy-peer-deps)",
+      "Bash(npx patch-package react-native-track-player)",
+      "Bash(./node_modules/.bin/patch-package react-native-track-player)",
+      "Bash(ls /Users/naingmahar/naingmahar/shweywethla/node_modules/.bin/patch*)",
+      "Bash(node_modules/.bin/patch-package react-native-track-player)",
+      "Bash(node_modules/.bin/patch-package react-native-track-player --use-yarn)",
+      "Bash(KTFILE=\"node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/module/MusicModule.kt\" sed 's/\\\\.originalItem!!/\\\\.originalItem/g' \"$KTFILE\" diff -u /tmp/MusicModule_orig.kt \"$KTFILE\")",
+      "Bash(node_modules/.bin/patch-package --patch-dir patches)"
     ]
   }
 }

@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, Text } from "react-native"
+import { ScrollView, StyleSheet, Text, View, TouchableOpacity } from "react-native"
 import { BgPhoto } from "../componet/atoms/Photo/BgPhoto"
 import { FlexContainer, FlexRowContainer } from "../componet/atoms/container/FlexContainer"
 import { EsNormalHeader, EsNormalText, EsSmallHeader, EsXsHeader } from "../componet/atoms/EsText"
@@ -10,6 +10,8 @@ import { NavigationProp, useNavigation } from "@react-navigation/native"
 import { getVersion } from "react-native-device-info"
 import { Colors } from "../res/color"
 import { Images, getUserImage } from "../res/images"
+import { useEffect, useState } from "react"
+import { getStorageLimitGB, setStorageLimitGB, getCurrentStorageUsageGB } from "../services/storageManager"
 
 // const logo = "https://lclb.s3.ap-southeast-1.amazonaws.com/operation/1737398123578.png"
 
@@ -43,6 +45,49 @@ const MenuGroup = (props:IMenuGroup) => {
         </FlexContainer>
     )
 }
+const StorageLimitSection = () => {
+    const [limitGB, setLimitGB] = useState(5);
+    const [usageGB, setUsageGB] = useState(0);
+
+    useEffect(() => {
+        getStorageLimitGB().then(setLimitGB);
+        getCurrentStorageUsageGB().then(setUsageGB);
+    }, []);
+
+    const change = (delta: number) => {
+        const next = Math.min(10, Math.max(1, limitGB + delta));
+        setLimitGB(next);
+        setStorageLimitGB(next);
+    };
+
+    const usedPercent = Math.min(100, Math.round((usageGB / limitGB) * 100));
+
+    return (
+        <FlexContainer fullWidth style={{ marginBottom: 20 }}>
+            <EsXsHeader noneBasicStyle style={{ marginBottom: 12 }}>Storage Limit</EsXsHeader>
+            <View style={storageStyles.card}>
+                <View style={storageStyles.row}>
+                    <Text style={storageStyles.label}>Limit</Text>
+                    <View style={storageStyles.stepper}>
+                        <TouchableOpacity style={storageStyles.stepBtn} onPress={() => change(-1)}>
+                            <Text style={storageStyles.stepBtnText}>−</Text>
+                        </TouchableOpacity>
+                        <Text style={storageStyles.value}>{limitGB} GB</Text>
+                        <TouchableOpacity style={storageStyles.stepBtn} onPress={() => change(1)}>
+                            <Text style={storageStyles.stepBtnText}>+</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+                <Text style={storageStyles.usage}>Used: {usageGB} GB / {limitGB} GB ({usedPercent}%)</Text>
+                <View style={storageStyles.progressBg}>
+                    <View style={[storageStyles.progressFill, { width: `${usedPercent}%` as any, backgroundColor: usedPercent > 80 ? '#e74c3c' : '#4F46E5' }]} />
+                </View>
+                <Text style={storageStyles.hint}>Min 1 GB · Max 10 GB · Oldest files removed when exceeded</Text>
+            </View>
+        </FlexContainer>
+    );
+};
+
 export const Setting = () => {
     const [getUser] = useAtom(AuthAtom)
     return (
@@ -66,8 +111,9 @@ export const Setting = () => {
                         ]
                     } 
                     /> */}
-                <MenuGroup 
-                    title="About" 
+                <StorageLimitSection />
+                <MenuGroup
+                    title="About"
                     items={
                         [
                             {icon:IconKey.info,name:"About Us",nav:MainNav.aboutUs},
@@ -90,6 +136,74 @@ export const Setting = () => {
         </ScrollView>
     )
 }
+
+const storageStyles = StyleSheet.create({
+    card: {
+        backgroundColor: '#fff',
+        borderRadius: 10,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.08)',
+        width: '100%',
+    },
+    row: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    label: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#333',
+    },
+    stepper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    stepBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: '#4F46E5',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    stepBtnText: {
+        color: '#fff',
+        fontSize: 20,
+        fontWeight: '700',
+        lineHeight: 22,
+    },
+    value: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#4F46E5',
+        minWidth: 55,
+        textAlign: 'center',
+    },
+    usage: {
+        fontSize: 13,
+        color: '#666',
+        marginBottom: 8,
+    },
+    progressBg: {
+        height: 8,
+        backgroundColor: '#eee',
+        borderRadius: 4,
+        overflow: 'hidden',
+        marginBottom: 10,
+    },
+    progressFill: {
+        height: 8,
+        borderRadius: 4,
+    },
+    hint: {
+        fontSize: 11,
+        color: '#aaa',
+    },
+});
 
 const styles = StyleSheet.create({
     image:{

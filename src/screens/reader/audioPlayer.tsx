@@ -17,7 +17,7 @@ import { useAtom } from 'jotai';
 
 import { darkModeAtom } from '../../features/jotai/model/darkMode';
 import { Icon, IconKey, IconsSize } from '../../componet/atoms/icons';
-import { IBook } from '../../types/models/IBook';
+import { IBook, IBookDownloaded } from '../../types/models/IBook';
 
 type AudioPlayerRoute = RouteProp<{ AudioPlayer: IBook }, 'AudioPlayer'>;
 
@@ -42,7 +42,10 @@ export const AudioPlayerScreen = () => {
   const [isDark] = useAtom(darkModeAtom);
   const videoRef = useRef<VideoRef>(null);
 
-  const audioUri = Array.isArray(book.audioUrl) ? book.audioUrl[0] : book.audioUrl;
+  const localPaths = (book as IBookDownloaded).localAudioPaths;
+  const audioUri = (localPaths && localPaths.length > 0)
+    ? localPaths[0]
+    : (Array.isArray(book.audioUrl) ? book.audioUrl[0] : book.audioUrl);
 
   const [paused, setPaused] = useState(false);
   const [isLoading, setIsLoading] = useState(!!audioUri);

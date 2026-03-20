@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Linking } from 'react-native';
 import { IBook, IBookDownloaded } from '../types/models/IBook';
 import { addDownloadedBook, isBookDownloaded } from '../services/downloadedBooksDB';
+import { enforceStorageLimit } from '../services/storageManager';
 
 // export const downloadFile = async (url:string,name?:string):Promise<{path?:string,error?:string}> => {
 //     try {
@@ -47,6 +48,31 @@ export const createFile = async (json:string) => {
   }
 };
 
+const downloadAudioFiles = async (bookId: string, audioUrl: string | string[]): Promise<string[]> => {
+  const urls = Array.isArray(audioUrl) ? audioUrl : [audioUrl];
+  const localPaths: string[] = [];
+
+  for (let i = 0; i < urls.length; i++) {
+    const url = urls[i];
+    const ext = url.split('?')[0].split('.').pop() || 'mp3';
+    const localPath = `${downloadDir}/${bookId}_audio_${i}.${ext}`;
+    try {
+      const exists = await RNFS.exists(localPath);
+      if (!exists) {
+        const result = await RNFS.downloadFile({ fromUrl: url, toFile: localPath }).promise;
+        if (result.statusCode !== 200) {
+          console.warn(`Audio part ${i} download failed:`, result.statusCode);
+          continue;
+        }
+      }
+      localPaths.push(localPath);
+    } catch (e) {
+      console.warn(`Audio part ${i} download error:`, e);
+    }
+  }
+  return localPaths;
+};
+
 export const downloadFile = async (book:IBook):Promise<IBookDownloaded|undefined> => {
   const bookType = book.premium_type || 'pdf';
   const localFilePath = `${downloadDir}/${book.id}.${bookType}`;
@@ -55,7 +81,7 @@ export const downloadFile = async (book:IBook):Promise<IBookDownloaded|undefined
 
   try {
     const fileRecord = await isBookDownloaded(book.id);
-    
+
     if (fileRecord) {
       console.log('File already downloaded. Opening from local storage.');
       return fileRecord;
@@ -73,8 +99,21 @@ export const downloadFile = async (book:IBook):Promise<IBookDownloaded|undefined
 
     if (result.statusCode === 200) {
       console.log('Download successful!');
-      let downloadedBook:IBookDownloaded = {...book, localFilePath, downloadedAt: new Date().toISOString()};
+
+      // Download audio files if available
+      let localAudioPaths: string[] | undefined;
+      if (book.audioUrl) {
+        localAudioPaths = await downloadAudioFiles(book.id, book.audioUrl);
+      }
+
+      let downloadedBook:IBookDownloaded = {
+        ...book,
+        localFilePath,
+        downloadedAt: new Date().toISOString(),
+        ...(localAudioPaths && localAudioPaths.length > 0 ? { localAudioPaths } : {}),
+      };
       await addDownloadedBook(downloadedBook);
+      await enforceStorageLimit();
       return downloadedBook;
     } else {
       throw new Error(`Download failed with status code: ${result.statusCode}`);

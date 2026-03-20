@@ -4,26 +4,28 @@ import { getDownloadedBooks, removeDownloadedBook } from '../services/downloaded
 import { IBookDownloaded } from '../types/models/IBook';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MainNav, RootStackParamList } from '../nav/main.nav';
-import { Colors, GradientColor } from '../res/color';
-import { EsButton, GradientButton } from '../componet/atoms/container/EsButton';
+import { GradientColor } from '../res/color';
+import { EsButton } from '../componet/atoms/container/EsButton';
 import { GradientContainer } from '../componet/atoms/container/GradientContainer';
 import EmptyLibraryScreen from '../componet/atoms/container/EmptyLibraryScreen';
 import { BannerAd, BannerAdSize, TestIds, useForeground } from 'react-native-google-mobile-ads';
 
 const adUnitId = __DEV__ ? TestIds.ADAPTIVE_BANNER : 'ca-app-pub-1353250294440692/6466150932';
 
+type Tab = 'Books' | 'Notes' | 'Audio';
 type HistoryScreenProps = NativeStackScreenProps<RootStackParamList, MainNav.History>;
 
-export const History:React.FC<HistoryScreenProps> = ({navigation}) => {
-  const [downloadedBooks, setDownloadedBooks] = useState([]);
+export const History: React.FC<HistoryScreenProps> = ({ navigation }) => {
+  const [downloadedBooks, setDownloadedBooks] = useState<IBookDownloaded[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<Tab>('Books');
 
   const fetchDownloadedBooks = async () => {
     try {
       const books = await getDownloadedBooks();
       setDownloadedBooks(books);
     } catch (error) {
-      console.error("Failed to fetch downloaded books:", error);
+      console.error('Failed to fetch downloaded books:', error);
     } finally {
       setLoading(false);
     }
@@ -34,35 +36,47 @@ export const History:React.FC<HistoryScreenProps> = ({navigation}) => {
   }, []);
 
   const bannerRef = useRef<BannerAd>(null);
-    
-      // (iOS) WKWebView can terminate if app is in a "suspended state", resulting in an empty banner when app returns to foreground.
-      // Therefore it's advised to "manually" request a new ad when the app is foregrounded (https://groups.google.com/g/google-admob-ads-sdk/c/rwBpqOUr8m8).
   useForeground(() => {
     Platform.OS === 'ios' && bannerRef.current?.load();
   });
 
-  const renderItem = ({ item }:{item:IBookDownloaded}) => (
+  const hasAudio = (item: IBookDownloaded) =>
+    (item.localAudioPaths && item.localAudioPaths.length > 0) ||
+    !!(item.audioUrl && (Array.isArray(item.audioUrl) ? item.audioUrl.length > 0 : item.audioUrl));
+
+  const filteredBooks = downloadedBooks.filter(item => {
+    if (activeTab === 'Audio') return hasAudio(item);
+    if (activeTab === 'Notes') return item.book_type === 'short_note';
+    // Books tab: all non-short_note books (including those with audio)
+    return item.book_type !== 'short_note';
+  });
+
+  const handleDelete = (id: string) => {
+    removeDownloadedBook(id)
+      .then(() => fetchDownloadedBooks())
+      .catch(err => console.log(err));
+  };
+
+  const renderItem = ({ item }: { item: IBookDownloaded }) => (
     <TouchableOpacity
       style={styles.bookItem}
-      onPress={()=>navigation.navigate(MainNav.ADS,item)}
-    >
-        <Image
-        style={styles.bookCover}
-        source={{ uri: item.coverImageUrl[0] }}
-      />
+      onPress={() => navigation.navigate(MainNav.ADS, item)}>
+      <Image style={styles.bookCover} source={{ uri: item.coverImageUrl[0] }} />
       <View style={styles.bookInfo}>
         <Text style={styles.bookTitle}>{item.title}</Text>
         <Text style={styles.bookAuthor}>{item.author}</Text>
+        {activeTab === 'Audio' && (
+          <Text style={styles.audioLabel}>
+            {item.localAudioPaths && item.localAudioPaths.length > 0 ? '📥 Offline' : '🌐 Online'}
+          </Text>
+        )}
       </View>
-      <View style={{justifyContent:"center"}}>
-        <EsButton 
-        style={{paddingHorizontal:20,paddingVertical:5,backgroundColor:GradientColor[5]}}
-        onPress={()=>{
-          removeDownloadedBook(item.id)
-          .then(()=>fetchDownloadedBooks())
-          .catch(err=>console.log(err))
-        }} 
-        title='Delete' />
+      <View style={{ justifyContent: 'center' }}>
+        <EsButton
+          style={{ paddingHorizontal: 20, paddingVertical: 5, backgroundColor: GradientColor[5] }}
+          onPress={() => handleDelete(item.id)}
+          title="Delete"
+        />
       </View>
     </TouchableOpacity>
   );
@@ -71,26 +85,40 @@ export const History:React.FC<HistoryScreenProps> = ({navigation}) => {
     return (
       <View style={styles.loaderContainer}>
         <ActivityIndicator size="large" color="#007BFF" />
-        <Text style={styles.loadingText}>Loading downloaded books...</Text>
+        <Text style={styles.loadingText}>Loading history...</Text>
       </View>
     );
   }
 
+  const TABS: Tab[] = ['Books', 'Notes', 'Audio'];
+
   return (
     <View style={styles.container}>
-    
       <GradientContainer style={styles.header}>
-          <Text style={styles.headerTitle}>History</Text>
+        <Text style={styles.headerTitle}>History</Text>
       </GradientContainer>
+
       <BannerAd ref={bannerRef} unitId={adUnitId} size={BannerAdSize.LEADERBOARD} />
 
-      {downloadedBooks.length === 0 ? (
-        <EmptyLibraryScreen onBrowsePress={() => navigation.navigate(MainNav.Books, { category: 'Popular' })}/>
+      {/* Tabs */}
+      <View style={styles.tabRow}>
+        {TABS.map(tab => (
+          <TouchableOpacity
+            key={tab}
+            style={[styles.tab, activeTab === tab && styles.tabActive]}
+            onPress={() => setActiveTab(tab)}>
+            <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>{tab}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {filteredBooks.length === 0 ? (
+        <EmptyLibraryScreen onBrowsePress={() => navigation.navigate(MainNav.Books, { category: 'Popular' })} />
       ) : (
         <FlatList
           refreshing={loading}
-          onRefresh={()=>fetchDownloadedBooks()}
-          data={downloadedBooks}
+          onRefresh={() => fetchDownloadedBooks()}
+          data={filteredBooks}
           renderItem={renderItem}
           keyExtractor={item => item.id}
           contentContainerStyle={styles.listContent}
@@ -98,7 +126,7 @@ export const History:React.FC<HistoryScreenProps> = ({navigation}) => {
       )}
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -106,26 +134,49 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
   },
   header: {
-    // backgroundColor: Colors.nav,
     paddingVertical: 10,
     paddingHorizontal: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    // borderBottomLeftRadius: 20,
-    // borderBottomRightRadius: 20,
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
-    // marginBottom: 10,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: 'white',
-    marginTop: 20, // To avoid status bar overlap
+    marginTop: 20,
     marginBottom: 5,
+  },
+  tabRow: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderBottomWidth: 3,
+    borderBottomColor: 'transparent',
+  },
+  tabActive: {
+    borderBottomColor: GradientColor[1],
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#888',
+  },
+  tabTextActive: {
+    color: GradientColor[1],
   },
   loaderContainer: {
     flex: 1,
@@ -136,17 +187,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     color: '#555',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: 'gray',
-    textAlign: 'center',
   },
   listContent: {
     padding: 10,
@@ -170,10 +210,9 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     marginRight: 15,
   },
-bookInfo: {
+  bookInfo: {
     flex: 1,
     justifyContent: 'center',
-    // alignItems:"center"
   },
   bookTitle: {
     fontSize: 18,
@@ -184,5 +223,11 @@ bookInfo: {
     fontSize: 14,
     color: '#777',
     marginTop: 4,
+  },
+  audioLabel: {
+    fontSize: 12,
+    color: GradientColor[1],
+    marginTop: 6,
+    fontWeight: '600',
   },
 });

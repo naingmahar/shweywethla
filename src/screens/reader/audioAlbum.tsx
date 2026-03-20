@@ -15,7 +15,7 @@ import { useAtom } from 'jotai';
 
 import { darkModeAtom } from '../../features/jotai/model/darkMode';
 import { Icon, IconKey } from '../../componet/atoms/icons';
-import { IBook } from '../../types/models/IBook';
+import { IBook, IBookDownloaded } from '../../types/models/IBook';
 import { MainNav } from '../../nav/main.nav';
 
 type AudioAlbumRoute = RouteProp<{ AudioAlbum: IBook }, 'AudioAlbum'>;
@@ -27,8 +27,11 @@ export const AudioAlbumScreen = () => {
 
   const [isDark] = useAtom(darkModeAtom);
 
-  // Normalise audioUrl to always be a string[] of parts
-  const parts: string[] = Array.isArray(book.audioUrl)
+  // Use local audio paths if downloaded, otherwise use remote audioUrl
+  const localPaths = (book as IBookDownloaded).localAudioPaths;
+  const parts: string[] = (localPaths && localPaths.length > 0)
+    ? localPaths
+    : Array.isArray(book.audioUrl)
     ? book.audioUrl
     : book.audioUrl
     ? [book.audioUrl]

@@ -24,4 +24,5 @@ export interface IBook {
 export type IBookDownloaded = IBook & {
   localFilePath: string
   downloadedAt: string
+  localAudioPaths?: string[]
 }
