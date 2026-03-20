@@ -507,100 +507,86 @@ const ReaderFlatListWebView = ({path, title, language}: {path: string; title: st
                 </FlexRowContainer>
 
                 {isLandscapeNow ? (
-                  /* ── LANDSCAPE: compact 2-column grid ────────────── */
+                  /* ── LANDSCAPE: ultra-compact single-screen layout ── */
                   <>
-                    {/* Row 1: Page search — first */}
-                    <FlexRowContainer noneBasicStyle centerAlign style={{ marginBottom: 8 }}>
-                      <TextInput
-                        onChangeText={(val) => setGoToPage(parseInt(String(val)))}
-                        keyboardType="number-pad"
-                        placeholder="Page No."
-                        style={[styles.goToInput, { flex: 1, marginRight: 8 }]}
-                      />
-                      <TouchableOpacity
-                        onPress={() => {
-                          if (goToPage >= 1 && goToPage <= paragraphs.length) setCurrentPage(goToPage - 1);
-                          htmlModelRef.current?.close();
-                        }}
-                        style={styles.goToButton}>
-                        <Icon icon={IconKey.search} size={15} className={{color: "white"}} />
-                      </TouchableOpacity>
-                    </FlexRowContainer>
+                    {/* Row 1: Search + Font size + Toggles — all in one line */}
+                    <View style={lsStyles.row}>
+                      {/* Page search */}
+                      <View style={lsStyles.searchBlock}>
+                        <TextInput
+                          onChangeText={(val) => setGoToPage(parseInt(String(val)))}
+                          keyboardType="number-pad"
+                          placeholder="Page No."
+                          placeholderTextColor="#aaa"
+                          style={lsStyles.searchInput}
+                        />
+                        <TouchableOpacity
+                          onPress={() => {
+                            if (goToPage >= 1 && goToPage <= paragraphs.length) setCurrentPage(goToPage - 1);
+                            htmlModelRef.current?.close();
+                          }}
+                          style={lsStyles.searchBtn}>
+                          <Icon icon={IconKey.search} size={IconsSize.xs} className={{color: '#fff'}} />
+                        </TouchableOpacity>
+                      </View>
 
-                    <LineBreak />
+                      <View style={lsStyles.dividerV} />
 
-                    {/* Row 2: Dark Mode | Landscape Mode */}
-                    <View style={styles.twoColRow}>
-                      <View style={styles.twoColCell}>
-                        <FlexRowContainer noneBasicStyle style={styles.rowSpaceBetween}>
-                          <Text style={styles.modalTextPrimary}>Dark Mode</Text>
+                      {/* Font size */}
+                      <View style={lsStyles.fontSizeBlock}>
+                        <Text style={lsStyles.fontSizeLabelSm}>A</Text>
+                        <TouchableOpacity
+                          style={[lsStyles.fsBtn, fontSize <= MIN_FONT_SIZE && lsStyles.fsBtnDisabled]}
+                          onPress={() => setFontSizeVal((f) => Math.max((f ?? DEFAULT_FONT_SIZE) - 1, MIN_FONT_SIZE))}
+                          disabled={fontSize <= MIN_FONT_SIZE}>
+                          <Text style={lsStyles.fsBtnText}>−</Text>
+                        </TouchableOpacity>
+                        <Text style={lsStyles.fsValue}>{fontSize}</Text>
+                        <TouchableOpacity
+                          style={[lsStyles.fsBtn, fontSize >= MAX_FONT_SIZE && lsStyles.fsBtnDisabled]}
+                          onPress={() => setFontSizeVal((f) => Math.min((f ?? DEFAULT_FONT_SIZE) + 1, MAX_FONT_SIZE))}
+                          disabled={fontSize >= MAX_FONT_SIZE}>
+                          <Text style={lsStyles.fsBtnText}>+</Text>
+                        </TouchableOpacity>
+                        <Text style={lsStyles.fontSizeLabelLg}>A</Text>
+                      </View>
+
+                      <View style={lsStyles.dividerV} />
+
+                      {/* Toggles */}
+                      <View style={lsStyles.togglesBlock}>
+                        <View style={lsStyles.toggleRow}>
+                          <Text style={lsStyles.toggleLabel}>Dark</Text>
                           <Switch value={enabled} onValueChange={(v) => setDarkMode(v)}
                             trackColor={{ false: '#ccc', true: GradientColor[2] }}
-                            thumbColor={enabled ? '#fff' : '#f4f3f4'} />
-                        </FlexRowContainer>
-                      </View>
-                      <View style={styles.twoColDivider} />
-                      <View style={styles.twoColCell}>
-                        <FlexRowContainer noneBasicStyle style={styles.rowSpaceBetween}>
-                          <Text style={styles.modalTextPrimary}>Landscape</Text>
+                            thumbColor={enabled ? '#fff' : '#f4f3f4'}
+                            style={lsStyles.switch} />
+                        </View>
+                        <View style={lsStyles.toggleRow}>
+                          <Text style={lsStyles.toggleLabel}>Landscape</Text>
                           <Switch value={landscape} onValueChange={(v) => setIsLandscape(v)}
                             trackColor={{ false: '#ccc', true: GradientColor[2] }}
-                            thumbColor={landscape ? '#fff' : '#f4f3f4'} />
-                        </FlexRowContainer>
+                            thumbColor={landscape ? '#fff' : '#f4f3f4'}
+                            style={lsStyles.switch} />
+                        </View>
                       </View>
                     </View>
 
-                    <LineBreak />
-
-                    {/* Row 3: Font size — compact */}
-                    <FlexRowContainer noneBasicStyle centerAlign style={styles.rowSpaceBetween}>
-                      <Text style={[styles.fontSizeLabel, {fontSize: 11}]}>A</Text>
-                      <FlexRowContainer noneBasicStyle centerAlign style={[styles.volumeBarRow, { transform: [{ scaleY: 0.75 }] }]}>
-                        <TouchableOpacity
-                          style={[styles.volumeBtn, { width: 24, height: 24 }, fontSize <= MIN_FONT_SIZE && styles.volumeBtnDisabled]}
-                          onPress={() => setFontSizeVal((f) => Math.max((f ?? DEFAULT_FONT_SIZE) - 1, MIN_FONT_SIZE))}
-                          disabled={fontSize <= MIN_FONT_SIZE}>
-                          <Text style={[styles.volumeBtnText, { fontSize: 14 }]}>−</Text>
-                        </TouchableOpacity>
-                        <View style={styles.volumeDotsRow}>
-                          {Array.from({ length: MAX_FONT_SIZE - MIN_FONT_SIZE + 1 }).map((_, i) => (
-                            <View key={i} style={[styles.volumeDot, i < fontSize - MIN_FONT_SIZE ? styles.volumeDotFilled : styles.volumeDotEmpty]} />
-                          ))}
-                        </View>
-                        <TouchableOpacity
-                          style={[styles.volumeBtn, { width: 24, height: 24 }, fontSize >= MAX_FONT_SIZE && styles.volumeBtnDisabled]}
-                          onPress={() => setFontSizeVal((f) => Math.min((f ?? DEFAULT_FONT_SIZE) + 1, MAX_FONT_SIZE))}
-                          disabled={fontSize >= MAX_FONT_SIZE}>
-                          <Text style={[styles.volumeBtnText, { fontSize: 14 }]}>+</Text>
-                        </TouchableOpacity>
-                      </FlexRowContainer>
-                      <Text style={[styles.fontSizeLabel, {fontSize: 16}]}>A</Text>
-                    </FlexRowContainer>
-
-                    <LineBreak />
-
-                    {/* Font picker — compact */}
-                    <View style={styles.fontPickerSection}>
-                      <Text style={styles.fontPickerLabel}>Font</Text>
-                      <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.fontPickerRow}
-                      >
+                    {/* Row 2: Font picker */}
+                    <View style={lsStyles.fontRow}>
+                      <Text style={lsStyles.fontLabel}>Font</Text>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={lsStyles.fontScroll}>
                         {fonts.map((f) => {
                           const selected = f.id === fontId;
                           return (
                             <TouchableOpacity
                               key={f.id}
                               onPress={() => setFontFamilyId(f.id)}
-                              style={[styles.fontBtn, selected && styles.fontBtnSelected]}
+                              style={[lsStyles.fontBtn, selected && lsStyles.fontBtnSelected]}
                               activeOpacity={0.75}
                             >
-                              <Text style={[styles.fontBtnPreview, f.nativeFont ? { fontFamily: f.nativeFont } : {}, selected && styles.fontBtnPreviewSelected]}>
+                              <Text style={[lsStyles.fontBtnText, f.nativeFont ? { fontFamily: f.nativeFont } : {}, selected && lsStyles.fontBtnTextSelected]}>
                                 {f.preview}
-                              </Text>
-                              <Text style={[styles.fontBtnLabel, selected && styles.fontBtnLabelSelected]} numberOfLines={1}>
-                                {f.label}
                               </Text>
                             </TouchableOpacity>
                           );
@@ -741,6 +727,104 @@ const ReaderFlatListWebView = ({path, title, language}: {path: string; title: st
     </View>
   );
 };
+
+// Landscape modal styles
+const lsStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    gap: 8,
+  },
+  dividerV: {
+    width: 1,
+    alignSelf: 'stretch',
+    backgroundColor: '#e0e0e0',
+    marginVertical: 2,
+  },
+  // Page search
+  searchBlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1.2,
+    gap: 6,
+  },
+  searchInput: {
+    flex: 1,
+    height: 34,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    fontSize: 13,
+    color: '#333',
+    backgroundColor: '#f9f9f9',
+  },
+  searchBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: GradientColor[2],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Font size
+  fontSizeBlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1.3,
+    justifyContent: 'center',
+  },
+  fontSizeLabelSm: { fontSize: 11, color: '#555', fontWeight: '600' },
+  fontSizeLabelLg: { fontSize: 17, color: '#555', fontWeight: '600' },
+  fsBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: GradientColor[2],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fsBtnDisabled: { backgroundColor: '#ccc' },
+  fsBtnText: { color: '#fff', fontSize: 16, fontWeight: '700', lineHeight: 18 },
+  fsValue: { fontSize: 13, fontWeight: '700', color: GradientColor[2], minWidth: 22, textAlign: 'center' },
+  // Toggles
+  togglesBlock: {
+    flex: 1.2,
+    gap: 4,
+    justifyContent: 'center',
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  toggleLabel: { fontSize: 12, color: '#444', fontWeight: '500' },
+  switch: { transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] },
+  // Font picker
+  fontRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    gap: 8,
+  },
+  fontLabel: { fontSize: 12, color: '#888', fontWeight: '600' },
+  fontScroll: { gap: 6, paddingVertical: 2 },
+  fontBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#f2f2f2',
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  fontBtnSelected: { backgroundColor: GradientColor[2] + '18', borderColor: GradientColor[2] },
+  fontBtnText: { fontSize: 13, color: '#555' },
+  fontBtnTextSelected: { color: GradientColor[2], fontWeight: '700' },
+});
 
 const modalStyle = StyleSheet.create({
   title: {
