@@ -507,9 +507,29 @@ const ReaderFlatListWebView = ({path, title, language}: {path: string; title: st
                 </FlexRowContainer>
 
                 {isLandscapeNow ? (
-                  /* ── LANDSCAPE: 2-column grid ─────────────────────── */
+                  /* ── LANDSCAPE: compact 2-column grid ────────────── */
                   <>
-                    {/* Row 1: Dark Mode | Landscape Mode */}
+                    {/* Row 1: Page search — first */}
+                    <FlexRowContainer noneBasicStyle centerAlign style={{ marginBottom: 8 }}>
+                      <TextInput
+                        onChangeText={(val) => setGoToPage(parseInt(String(val)))}
+                        keyboardType="number-pad"
+                        placeholder="Page No."
+                        style={[styles.goToInput, { flex: 1, marginRight: 8 }]}
+                      />
+                      <TouchableOpacity
+                        onPress={() => {
+                          if (goToPage >= 1 && goToPage <= paragraphs.length) setCurrentPage(goToPage - 1);
+                          htmlModelRef.current?.close();
+                        }}
+                        style={styles.goToButton}>
+                        <Icon icon={IconKey.search} size={15} className={{color: "white"}} />
+                      </TouchableOpacity>
+                    </FlexRowContainer>
+
+                    <LineBreak />
+
+                    {/* Row 2: Dark Mode | Landscape Mode */}
                     <View style={styles.twoColRow}>
                       <View style={styles.twoColCell}>
                         <FlexRowContainer noneBasicStyle style={styles.rowSpaceBetween}>
@@ -532,15 +552,15 @@ const ReaderFlatListWebView = ({path, title, language}: {path: string; title: st
 
                     <LineBreak />
 
-                    {/* Row 2: Font size — full width */}
-                    <FlexRowContainer noneBasicStyle style={styles.rowSpaceBetween}>
-                      <Text style={[styles.fontSizeLabel, {fontSize: 13}]}>A</Text>
-                      <FlexRowContainer noneBasicStyle centerAlign style={styles.volumeBarRow}>
+                    {/* Row 3: Font size — compact */}
+                    <FlexRowContainer noneBasicStyle centerAlign style={styles.rowSpaceBetween}>
+                      <Text style={[styles.fontSizeLabel, {fontSize: 11}]}>A</Text>
+                      <FlexRowContainer noneBasicStyle centerAlign style={[styles.volumeBarRow, { transform: [{ scaleY: 0.75 }] }]}>
                         <TouchableOpacity
-                          style={[styles.volumeBtn, fontSize <= MIN_FONT_SIZE && styles.volumeBtnDisabled]}
+                          style={[styles.volumeBtn, { width: 24, height: 24 }, fontSize <= MIN_FONT_SIZE && styles.volumeBtnDisabled]}
                           onPress={() => setFontSizeVal((f) => Math.max((f ?? DEFAULT_FONT_SIZE) - 1, MIN_FONT_SIZE))}
                           disabled={fontSize <= MIN_FONT_SIZE}>
-                          <Text style={styles.volumeBtnText}>−</Text>
+                          <Text style={[styles.volumeBtnText, { fontSize: 14 }]}>−</Text>
                         </TouchableOpacity>
                         <View style={styles.volumeDotsRow}>
                           {Array.from({ length: MAX_FONT_SIZE - MIN_FONT_SIZE + 1 }).map((_, i) => (
@@ -548,18 +568,18 @@ const ReaderFlatListWebView = ({path, title, language}: {path: string; title: st
                           ))}
                         </View>
                         <TouchableOpacity
-                          style={[styles.volumeBtn, fontSize >= MAX_FONT_SIZE && styles.volumeBtnDisabled]}
+                          style={[styles.volumeBtn, { width: 24, height: 24 }, fontSize >= MAX_FONT_SIZE && styles.volumeBtnDisabled]}
                           onPress={() => setFontSizeVal((f) => Math.min((f ?? DEFAULT_FONT_SIZE) + 1, MAX_FONT_SIZE))}
                           disabled={fontSize >= MAX_FONT_SIZE}>
-                          <Text style={styles.volumeBtnText}>+</Text>
+                          <Text style={[styles.volumeBtnText, { fontSize: 14 }]}>+</Text>
                         </TouchableOpacity>
                       </FlexRowContainer>
-                      <Text style={[styles.fontSizeLabel, {fontSize: 20}]}>A</Text>
+                      <Text style={[styles.fontSizeLabel, {fontSize: 16}]}>A</Text>
                     </FlexRowContainer>
 
                     <LineBreak />
 
-                    {/* Font picker — full width in landscape too */}
+                    {/* Font picker — compact */}
                     <View style={styles.fontPickerSection}>
                       <Text style={styles.fontPickerLabel}>Font</Text>
                       <ScrollView
@@ -573,63 +593,19 @@ const ReaderFlatListWebView = ({path, title, language}: {path: string; title: st
                             <TouchableOpacity
                               key={f.id}
                               onPress={() => setFontFamilyId(f.id)}
-                              style={[
-                                styles.fontBtn,
-                                selected && styles.fontBtnSelected,
-                              ]}
+                              style={[styles.fontBtn, selected && styles.fontBtnSelected]}
                               activeOpacity={0.75}
                             >
-                              <Text
-                                style={[
-                                  styles.fontBtnPreview,
-                                  f.nativeFont ? { fontFamily: f.nativeFont } : {},
-                                  selected && styles.fontBtnPreviewSelected,
-                                ]}
-                              >
+                              <Text style={[styles.fontBtnPreview, f.nativeFont ? { fontFamily: f.nativeFont } : {}, selected && styles.fontBtnPreviewSelected]}>
                                 {f.preview}
                               </Text>
-                              <Text
-                                style={[
-                                  styles.fontBtnLabel,
-                                  selected && styles.fontBtnLabelSelected,
-                                ]}
-                                numberOfLines={1}
-                              >
+                              <Text style={[styles.fontBtnLabel, selected && styles.fontBtnLabelSelected]} numberOfLines={1}>
                                 {f.label}
                               </Text>
                             </TouchableOpacity>
                           );
                         })}
                       </ScrollView>
-                    </View>
-
-                    <LineBreak />
-
-                    {/* Row 3: Go to page | Back to Home */}
-                    <View style={styles.twoColRow}>
-                      <View style={styles.twoColCell}>
-                        <FlexRowContainer noneBasicStyle centerAlign>
-                          <TextInput
-                            onChangeText={(val) => setGoToPage(parseInt(String(val)))}
-                            keyboardType="number-pad"
-                            placeholder="Page No."
-                            style={[styles.goToInput, { width: '60%' }]}
-                          />
-                          <TouchableOpacity
-                            onPress={() => {
-                              if (goToPage >= 1 && goToPage <= paragraphs.length) setCurrentPage(goToPage - 1);
-                              htmlModelRef.current?.close();
-                            }}
-                            style={styles.goToButton}>
-                            <Icon icon={IconKey.search} size={15} className={{color: "white"}} />
-                          </TouchableOpacity>
-                        </FlexRowContainer>
-                      </View>
-                      <View style={styles.twoColDivider} />
-                      <FlexRowContainer isTouchable onPress={() => navigation.navigate(MainNav.HOME as never)} noneBasicStyle style={[styles.twoColCell, styles.rowCenter]}>
-                        <Icon icon={IconKey.home} size={IconsSize.normal} className={{color: GradientColor[2], marginRight: 8}} />
-                        <Text style={styles.modalTextPrimary}>Back to Home</Text>
-                      </FlexRowContainer>
                     </View>
                   </>
                 ) : (
