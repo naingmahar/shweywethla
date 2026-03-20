@@ -107,8 +107,8 @@ const Dashboard: React.FC<DashboardScreenProps> = (props) => {
     );
 
   const renderBook        = makeRenderBook();
-  const renderShortNote   = makeRenderBook('shortNote');
-  const renderComingSoon  = makeRenderBook('comingSoon');
+  const renderShortNote   = makeRenderBook('comingSoon');
+  const renderComingSoon  = makeRenderBook('shortNote');
 
   const RenderCategory: ListRenderItem<string> = ({ item }) => (
     <TouchableOpacity onPress={()=>props.navigation.navigate(MainNav.Books,{

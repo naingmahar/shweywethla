@@ -196,7 +196,7 @@ const NotesScreen = ({ navigation, route }: NotesScreenProps) => {
         onPress={() => navigation.navigate(MainNav.BookDeatils, { ...item, fromTab: 'Notes' })}>
 
         <BookCoverCard
-          bookType={isComingSoon ? 'comingSoon' : 'shortNote'}
+          bookType={isComingSoon ? 'shortNote' : 'comingSoon'}
           seed={item.id}
           title={item.title}
           author={item.author}
