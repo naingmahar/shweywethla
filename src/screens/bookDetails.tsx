@@ -15,7 +15,7 @@ import { FlexContainer, FlexRowContainer } from '../componet/atoms/container/Fle
 import { EsTextInput } from '../componet/atoms/EsTextInput';
 import { EsNormalHeader, EsSmallHeader } from '../componet/atoms/EsText';
 import { GradientButton } from '../componet/atoms/container/EsButton';
-import { Icon, IconKey } from '../componet/atoms/icons';
+import { Icon, IconKey, IconsSize } from '../componet/atoms/icons';
 
 // Services & Utils
 import { RemoveSavedRecordAdWatch } from '../services/recordAdsWatch';
@@ -404,7 +404,7 @@ const BookDetailsScreen: React.FC<BookDetailsScreenProps> = ({ route, navigation
           navigation.navigate(target);
         }}
       >
-        <Icon icon={IconKey.back} size={24} className={{ color: '#7B5EC9' }} />
+        <Icon icon={IconKey.back} size={IconsSize.normal} className={{ color: '#7B5EC9' }} />
       </TouchableOpacity>
 
       {/* <GradientHeader /> */}
@@ -413,7 +413,7 @@ const BookDetailsScreen: React.FC<BookDetailsScreenProps> = ({ route, navigation
       <View style={styles.header}>
         <Image
           style={styles.coverImage}
-          source={{ uri: book.coverImageUrl[0] }}
+          source={{ uri: book.coverImageUrl?.[0] }}
           resizeMode="contain"
         />
         <Text style={styles.title}>{book.title}</Text>

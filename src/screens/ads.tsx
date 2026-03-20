@@ -24,7 +24,7 @@ import { EsSmallHeader } from "../componet/atoms/EsText";
 import { ESColor } from "../componet/atoms/res/EsColor";
 import { setRecordAdWatch } from "../services/recordAdsWatch";
 import { downloadFile } from "../utils/downloadFile";
-import { Icon, IconKey } from "../componet/atoms/icons";
+import { Icon, IconKey, IconsSize } from "../componet/atoms/icons";
 
 type IProps = NativeStackScreenProps<RootStackParamList, 'ADS'>;
 
@@ -193,7 +193,7 @@ export const ADS = (props: IProps) => {
           style={styles.backButton} 
           onPress={() => props.navigation.goBack()}
         >
-          <Icon icon={IconKey.back} size={24} className={{ color: ESColor.gray }} />
+          <Icon icon={IconKey.back} size={IconsSize.normal} className={{ color: ESColor.gray }} />
         </TouchableOpacity>
       )}
 

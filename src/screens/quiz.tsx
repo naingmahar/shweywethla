@@ -39,7 +39,7 @@ export const Quizzes = (props:IProps) => {
 
 
     useEffect(()=>{
-        TrackPlayer.play();
+        // TrackPlayer.play(); // module not installed
     },[])
 
     useEffect(()=>{

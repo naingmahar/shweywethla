@@ -14,7 +14,7 @@ import { useNavigation, useRoute, type RouteProp } from '@react-navigation/nativ
 import { useAtom } from 'jotai';
 
 import { darkModeAtom } from '../../features/jotai/model/darkMode';
-import { Icon, IconKey } from '../../componet/atoms/icons';
+import { Icon, IconKey, IconsSize } from '../../componet/atoms/icons';
 import { IBook, IBookDownloaded } from '../../types/models/IBook';
 import { MainNav } from '../../nav/main.nav';
 
@@ -59,7 +59,7 @@ export const AudioAlbumScreen = () => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
-          <Icon icon={IconKey.back} size={24} className={{ color: textColor }} />
+          <Icon icon={IconKey.back} size={IconsSize.normal} className={{ color: textColor }} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: textColor }]}>Audio Book</Text>
         <View style={styles.headerBtn} />
@@ -68,7 +68,7 @@ export const AudioAlbumScreen = () => {
       {/* Book Info Card */}
       <View style={[styles.bookCard, { backgroundColor: cardBg }]}>
         <Image
-          source={{ uri: book.coverImageUrl[0] }}
+          source={{ uri: book.coverImageUrl?.[0] }}
           style={styles.cover}
           resizeMode="cover"
         />
@@ -120,7 +120,7 @@ export const AudioAlbumScreen = () => {
               activeOpacity={0.8}
             >
               <LinearGradient colors={['#7B5EC9', '#22B4D3']} style={styles.playGradient}>
-                <Icon icon={IconKey.play} size={18} className={{ color: '#fff' }} />
+                <Icon icon={IconKey.play} size={IconsSize.sm} className={{ color: '#fff' }} />
               </LinearGradient>
             </TouchableOpacity>
           </TouchableOpacity>

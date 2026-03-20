@@ -125,7 +125,7 @@ export const AudioPlayerScreen = () => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
-          <Icon icon={IconKey.back} size={24} className={{ color: textColor }} />
+          <Icon icon={IconKey.back} size={IconsSize.normal} className={{ color: textColor }} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: textColor }]}>Audio Book</Text>
         <View style={styles.headerBtn} />
@@ -134,7 +134,7 @@ export const AudioPlayerScreen = () => {
       {/* Cover Art */}
       <View style={[styles.coverWrapper, { shadowColor: isDark ? '#7B5EC9' : '#000' }]}>
         <Image
-          source={{ uri: book.coverImageUrl[0] }}
+          source={{ uri: book.coverImageUrl?.[0] }}
           style={styles.cover}
           resizeMode="cover"
         />

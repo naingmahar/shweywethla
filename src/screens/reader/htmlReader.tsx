@@ -5,7 +5,7 @@ import RNFS from "react-native-fs";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { GradientColor } from "../../res/color";
 import { FlexContainer, FlexRowContainer } from "../../componet/atoms/container/FlexContainer";
-import { Icon, IconKey } from "../../componet/atoms/icons";
+import { Icon, IconKey, IconsSize } from "../../componet/atoms/icons";
 import { EsModel } from "../../componet/atoms/container/ModalContainer";
 import { IEsModelRefProps } from "../../componet/atoms/Types/IModal";
 import { useNavigation } from "@react-navigation/native";
@@ -471,7 +471,7 @@ const ReaderFlatListWebView = ({path, title, language}: {path: string; title: st
               floatingBtnAnimStyle,
             ]}
           >
-            <Icon icon={IconKey.setting} size={22} className={{ color: enabled ? '#e1e1e1' : '#555' }} />
+            <Icon icon={IconKey.setting} size={IconsSize.normal} className={{ color: enabled ? '#e1e1e1' : '#555' }} />
           </Animated.View>
         </GestureDetector>
 
@@ -627,7 +627,7 @@ const ReaderFlatListWebView = ({path, title, language}: {path: string; title: st
                       </View>
                       <View style={styles.twoColDivider} />
                       <FlexRowContainer isTouchable onPress={() => navigation.navigate(MainNav.HOME as never)} noneBasicStyle style={[styles.twoColCell, styles.rowCenter]}>
-                        <Icon icon={IconKey.home} size={24} className={{color: GradientColor[2], marginRight: 8}} />
+                        <Icon icon={IconKey.home} size={IconsSize.normal} className={{color: GradientColor[2], marginRight: 8}} />
                         <Text style={styles.modalTextPrimary}>Back to Home</Text>
                       </FlexRowContainer>
                     </View>
@@ -637,7 +637,7 @@ const ReaderFlatListWebView = ({path, title, language}: {path: string; title: st
                   <>
                     <FlexRowContainer noneBasicStyle style={styles.rowSpaceBetween}>
                       <FlexRowContainer noneBasicStyle centerAlign>
-                        <Icon icon={IconKey.setting} size={24} className={{color: GradientColor[2], marginRight: 10}} />
+                        <Icon icon={IconKey.setting} size={IconsSize.normal} className={{color: GradientColor[2], marginRight: 10}} />
                         <Text style={styles.modalTextPrimary}>Dark Mode</Text>
                       </FlexRowContainer>
                       <Switch value={enabled} onValueChange={(v) => setDarkMode(v)}
@@ -717,7 +717,7 @@ const ReaderFlatListWebView = ({path, title, language}: {path: string; title: st
                     <LineBreak />
 
                     <FlexRowContainer noneBasicStyle style={styles.rowSpaceBetween}>
-                      <Icon icon={IconKey.book} size={28} className={{color: GradientColor[2]}} />
+                      <Icon icon={IconKey.book} size={IconsSize.lg} className={{color: GradientColor[2]}} />
                       <FlexRowContainer noneBasicStyle centerAlign>
                         <TextInput
                           onChangeText={(val) => setGoToPage(parseInt(String(val)))}
@@ -738,7 +738,7 @@ const ReaderFlatListWebView = ({path, title, language}: {path: string; title: st
                     <LineBreak />
 
                     <FlexRowContainer isTouchable onPress={() => navigation.navigate(MainNav.HOME as never)} noneBasicStyle style={styles.rowSpaceBetween}>
-                      <Icon icon={IconKey.home} size={28} className={{color: GradientColor[2], marginRight: 10}} />
+                      <Icon icon={IconKey.home} size={IconsSize.lg} className={{color: GradientColor[2], marginRight: 10}} />
                       <FlexRowContainer noneBasicStyle fullFlex>
                         <Text style={styles.modalTextPrimary}>Back to Home</Text>
                       </FlexRowContainer>
@@ -747,7 +747,7 @@ const ReaderFlatListWebView = ({path, title, language}: {path: string; title: st
 
                     <FlexRowContainer noneBasicStyle style={styles.rowSpaceBetween}>
                       <FlexRowContainer noneBasicStyle centerAlign>
-                        <Icon icon={IconKey.setting} size={24} className={{color: GradientColor[2], marginRight: 10}} />
+                        <Icon icon={IconKey.setting} size={IconsSize.normal} className={{color: GradientColor[2], marginRight: 10}} />
                         <Text style={styles.modalTextPrimary}>Landscape Mode</Text>
                       </FlexRowContainer>
                       <Switch value={landscape} onValueChange={(v) => setIsLandscape(v)}
