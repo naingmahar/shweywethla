@@ -228,6 +228,8 @@ interface BookCoverCardProps {
   height?: number;
   style?: ViewStyle;
   seed?: string;
+  showComingSoonLabel?: boolean;
+  showShortNoteLabel?: boolean;
 }
 
 export const BookCoverCard: React.FC<BookCoverCardProps> = ({
@@ -238,6 +240,8 @@ export const BookCoverCard: React.FC<BookCoverCardProps> = ({
   height = 160,
   style,
   seed = '',
+  showComingSoonLabel,
+  showShortNoteLabel,
 }) => {
   const effectiveSeed = seed || title || 'default';
   const palette = pickColor(effectiveSeed, bookType);
@@ -286,10 +290,19 @@ export const BookCoverCard: React.FC<BookCoverCardProps> = ({
           {bookType === 'comingSoon' && designId === 1 && <CsDesign2 p={palette} fw={frontWidth} h={height} />}
 
           {/* Coming Soon label */}
-          {bookType === 'comingSoon' && (
+          {(showComingSoonLabel ?? bookType === 'comingSoon') && (
             <View style={styles.csLabelWrap} pointerEvents="none">
               <View style={[styles.csLabelBadge, { backgroundColor: palette.accent }]}>
                 <Text style={[styles.csLabelText, { color: palette.cover }]}>COMING SOON</Text>
+              </View>
+            </View>
+          )}
+
+          {/* Short Note label */}
+          {(showShortNoteLabel ?? bookType === 'shortNote') && (
+            <View style={styles.csLabelWrap} pointerEvents="none">
+              <View style={[styles.csLabelBadge, { backgroundColor: '#1a1a1a' }]}>
+                <Text style={[styles.csLabelText, { color: '#ffffff' }]}>⏱ 30 mins</Text>
               </View>
             </View>
           )}

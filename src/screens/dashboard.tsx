@@ -79,7 +79,7 @@ const Dashboard: React.FC<DashboardScreenProps> = (props) => {
 
 
 
-  const makeRenderBook = (forcedBookType?: import('../componet/atoms/BookCoverCard').BookType): ListRenderItem<IBook> =>
+  const makeRenderBook = (forcedBookType?: import('../componet/atoms/BookCoverCard').BookType, showComingSoonLabel?: boolean, showShortNoteLabel?: boolean): ListRenderItem<IBook> =>
     ({ item }) => (
       <TouchableOpacity
         onPress={() => props.navigation.navigate(MainNav.Books, {
@@ -99,6 +99,8 @@ const Dashboard: React.FC<DashboardScreenProps> = (props) => {
               'original'
             )
           }
+          showComingSoonLabel={showComingSoonLabel}
+          showShortNoteLabel={showShortNoteLabel}
           width={100}
           height={150}
           seed={item.id}
@@ -107,8 +109,8 @@ const Dashboard: React.FC<DashboardScreenProps> = (props) => {
     );
 
   const renderBook        = makeRenderBook();
-  const renderShortNote   = makeRenderBook('comingSoon');
-  const renderComingSoon  = makeRenderBook('shortNote');
+  const renderShortNote   = makeRenderBook('comingSoon', false, true);
+  const renderComingSoon  = makeRenderBook('shortNote', true, false);
 
   const RenderCategory: ListRenderItem<string> = ({ item }) => (
     <TouchableOpacity onPress={()=>props.navigation.navigate(MainNav.Books,{

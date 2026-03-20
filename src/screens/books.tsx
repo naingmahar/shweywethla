@@ -108,7 +108,7 @@ const fetchBooksByTitleAndAuthor = async (keyword: string, field: string) => {
 
 const { width } = Dimensions.get('window');
 const GAP = 10;
-const ITEM_WIDTH = (width - GAP * 5) / 4;
+const ITEM_WIDTH = (width - GAP * 4) / 3;
 
 const BookListScreen = ({ navigation, route }: BookListScreenProps) => {
   // Use cached data from context
@@ -202,7 +202,7 @@ const BookListScreen = ({ navigation, route }: BookListScreenProps) => {
           title={item.title}
           author={item.author}
           width={ITEM_WIDTH - 10}
-          height={130}
+          height={150}
         />
 
       </TouchableOpacity>
@@ -266,7 +266,7 @@ const BookListScreen = ({ navigation, route }: BookListScreenProps) => {
         data={filteredBooks}
         renderItem={renderItem}
         keyExtractor={item => item.id}
-        numColumns={4}
+        numColumns={3}
         onScroll={() => setIsSearch(false)}
         columnWrapperStyle={styles.columnWrapper}
         contentContainerStyle={styles.listContent}
