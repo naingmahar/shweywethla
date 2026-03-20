@@ -1,7 +1,7 @@
-import { StyleSheet, Dimensions, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, View, Text, useWindowDimensions } from 'react-native';
 import Pdf from 'react-native-pdf';
 import { useAtom } from 'jotai';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { darkModeAtom } from '../../features/jotai/model/darkMode';
 import { landscapeModeAtom } from '../../features/jotai/model/landscapeMode';
 
@@ -11,8 +11,9 @@ try { Orientation = require("react-native-orientation-locker").default; } catch 
 
 
 export const PdfReader = ({path}:{path:string}) => {
-    const source = { uri: "file:/"+path, cache: true };
+    const source = { uri: "file://"+path, cache: true };
     const [darkMode] = useAtom(darkModeAtom);
+    const [pdfError, setPdfError] = useState<string|null>(null);
     const enabled = darkMode ?? false;
 
     // Persistent landscape mode
@@ -33,26 +34,37 @@ export const PdfReader = ({path}:{path:string}) => {
         return () => Orientation?.lockToPortrait();
     }, [landscape]);
 
+    if (pdfError) {
+        return (
+            <View style={[styles.container, styles.errorContainer]}>
+                <Text style={styles.errorText}>Failed to load PDF.</Text>
+                <Text style={styles.errorSub}>{pdfError}</Text>
+            </View>
+        );
+    }
+
     return (
         <View style={[styles.container, enabled ? styles.containerDark : styles.containerLight]}>
             <Pdf
+                key={path}
                 source={source}
                 horizontal
                 fitPolicy={0}
-                onLoadComplete={(numberOfPages,filePath) => {
-                    console.log(`Number of pages: ${numberOfPages}`);
+                onLoadComplete={(numberOfPages) => {
+                    console.log(`PDF loaded: ${numberOfPages} pages`);
                 }}
-                onPageChanged={(page,numberOfPages) => {
-                    console.log(`Current page: ${page}`);
+                onPageChanged={(page) => {
+                    console.log(`Page: ${page}`);
                 }}
                 onError={(error) => {
-                    console.log("Reading Error",error);
+                    console.error('PDF error:', error);
+                    setPdfError(String(error));
                 }}
                 onPressLink={(uri) => {
-                    console.log(`Link pressed: ${uri}`);
+                    console.log(`Link: ${uri}`);
                 }}
                 style={{
-                    flex:1,
+                    flex: 1,
                     width: width,
                     height: height,
                     backgroundColor: enabled ? '#121212' : '#fff'
@@ -67,8 +79,10 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'flex-start',
         alignItems: 'center',
-        // removed marginTop: 25 to let it fill screen properly in landscape
     },
     containerLight: { backgroundColor: '#fff' },
     containerDark:  { backgroundColor: '#121212' },
+    errorContainer: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
+    errorText: { fontSize: 16, fontWeight: '600', color: '#e74c3c', marginBottom: 8 },
+    errorSub: { fontSize: 13, color: '#888', textAlign: 'center', paddingHorizontal: 24 },
 });

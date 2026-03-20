@@ -13,12 +13,13 @@ export const Reader:React.FC<ReaderScreenProps> = ({route,navigation}) => {
     const book = route.params
     const bookType = route.params.premium_type
     useEffect(()=>{
+        let isMounted = true
         downloadFile(route.params)
         .then((downloadedBook)=>{
-            if(downloadedBook) setPath(downloadedBook.localFilePath)
+            if(isMounted && downloadedBook) setPath(downloadedBook.localFilePath)
         })
-
-
+        .catch((err) => console.error('Reader download error:', err))
+        return () => { isMounted = false }
     },[])
     return(
        <>

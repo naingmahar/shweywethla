@@ -91,8 +91,13 @@ export const downloadFile = async (book:IBook):Promise<IBookDownloaded|undefined
 
     const typeConvertDownloadUrl = typeof book.premium == "string" ? book.premium : book.premium?.[0];
     const downloadUrl = typeConvertDownloadUrl || book.samplePdfUrl?.[0];
+
+    if (!downloadUrl) {
+      console.error('downloadFile: no download URL available for book', book.id);
+      return undefined;
+    }
+
     const result = await RNFS.downloadFile({
-      //@ts-ignore
       fromUrl: downloadUrl,
       toFile: localFilePath,
     }).promise;
