@@ -22,7 +22,7 @@ export const Reader:React.FC<ReaderScreenProps> = ({route,navigation}) => {
     },[])
     return(
        <>
-         {path != null &&  bookType == "html" && <ReaderFlatListWebView path={path} title={book.title}/>}
+         {path != null &&  bookType == "html" && <ReaderFlatListWebView path={path} title={book.title} language={book.language}/>}
          {path != null &&  bookType == "text" && <TextReaderPage path={path}/>}
          {path != null &&  bookType == "pdf" && <PdfReader path={path}/>}
        </>

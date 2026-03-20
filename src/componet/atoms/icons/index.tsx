@@ -70,7 +70,11 @@ export enum IconKey {
     male="MaleIcon",
     female="FemaleIcon",
     touch="TouchIcon",
-    rocket="RocketIcon"
+    rocket="RocketIcon",
+    play="PlayIcon",
+    pause="PauseIcon",
+    skipBackward="SkipBackwardIcon",
+    skipForward="SkipForwardIcon",
 }
 
 

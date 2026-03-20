@@ -20,13 +20,49 @@ import { useAtom } from "jotai";
 import { darkModeAtom } from "../../features/jotai/model/darkMode";
 import { fontSizeAtom, MIN_FONT_SIZE, MAX_FONT_SIZE, DEFAULT_FONT_SIZE } from "../../features/jotai/model/fontSize";
 import { landscapeModeAtom } from "../../features/jotai/model/landscapeMode";
+import { fontFamilyAtom, DEFAULT_FONT_FAMILY_ID } from "../../features/jotai/model/fontFamily";
 // Safe wrapper — module is null until native linking (pod install / rebuild)
 let Orientation: typeof import("react-native-orientation-locker").default | null = null;
 try { Orientation = require("react-native-orientation-locker").default; } catch (_) {}
 
+// ── Font Options ──────────────────────────────────────────────────────────────
+type FontOption = {
+  id: string;
+  label: string;
+  css: string;            // CSS font-family value used in WebView HTML
+  googleFontUrl?: string; // Google Fonts stylesheet URL (loaded in <head> if set)
+  nativeFont?: string;    // React Native fontFamily for preview button (system fonts only)
+  preview: string;        // Short preview text shown on the button
+};
+
+const MYANMAR_FONTS: FontOption[] = [
+  { id: 'default',      label: 'Default',      css: 'Pyidaungsu, "Noto Sans Myanmar", sans-serif',                                                                     preview: 'က', },
+  { id: 'pyidaungsu',   label: 'Pyidaungsu',   css: 'Pyidaungsu, sans-serif',                      nativeFont: 'Pyidaungsu',                                            preview: 'က', },
+  { id: 'myanmar3',     label: 'Myanmar3',     css: 'Myanmar3, Pyidaungsu, sans-serif',             nativeFont: 'Myanmar3',                                              preview: 'က', },
+  { id: 'noto-myanmar', label: 'Noto Sans',    css: '"Noto Sans Myanmar", Pyidaungsu, sans-serif',  googleFontUrl: 'https://fonts.googleapis.com/css2?family=Noto+Sans+Myanmar:wght@400;700&display=swap', preview: 'က', },
+  { id: 'padauk',       label: 'Padauk',       css: 'Padauk, Pyidaungsu, sans-serif',               googleFontUrl: 'https://fonts.googleapis.com/css2?family=Padauk:wght@400;700&display=swap',           preview: 'က', },
+];
+
+const ENGLISH_FONTS: FontOption[] = [
+  { id: 'default',      label: 'Default',      css: '-apple-system, Roboto, sans-serif',                                                                                preview: 'Aa', },
+  { id: 'georgia',      label: 'Georgia',      css: 'Georgia, serif',                               nativeFont: 'Georgia',                                               preview: 'Aa', },
+  { id: 'palatino',     label: 'Palatino',     css: '"Palatino Linotype", Palatino, serif',         nativeFont: 'Palatino',                                              preview: 'Aa', },
+  { id: 'times',        label: 'Times New',    css: '"Times New Roman", Times, serif',              nativeFont: 'Times New Roman',                                       preview: 'Aa', },
+  { id: 'merriweather', label: 'Merriweather', css: 'Merriweather, Georgia, serif',                 googleFontUrl: 'https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;1,400&display=swap', preview: 'Aa', },
+  { id: 'lato',         label: 'Lato',         css: 'Lato, Roboto, sans-serif',                     googleFontUrl: 'https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700&display=swap',  preview: 'Aa', },
+];
+
+function getFontList(language?: string): FontOption[] {
+  const lang = language?.toLowerCase() ?? '';
+  return lang.includes('myanmar') || lang.includes('burmese') || lang === 'mm' || lang === 'my'
+    ? MYANMAR_FONTS
+    : ENGLISH_FONTS;
+}
+// ──────────────────────────────────────────────────────────────────────────────
+
 // Build the HTML for a single page from its raw paragraph content.
 // This keeps only ONE page's HTML in memory at a time instead of all pages.
-function buildPageHtml(content: string, title: string, pageIndex: number, totalPages: number, darkMode: boolean, fontSize: number): string {
+function buildPageHtml(content: string, title: string, pageIndex: number, totalPages: number, darkMode: boolean, fontSize: number, fontCss: string, googleFontUrl?: string): string {
   let htmlText = content;
   htmlText = htmlText.replace(/--next--/g, "<br/>");
   // Normalize inline rem sizes so they scale with our font-size setting
@@ -46,10 +82,11 @@ function buildPageHtml(content: string, title: string, pageIndex: number, totalP
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+      ${googleFontUrl ? `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="${googleFontUrl}">` : ''}
       <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body {
-          font-family: -apple-system, Roboto, sans-serif;
+          font-family: ${fontCss};
           font-size: ${fontSize}px;
           line-height: 1.85;
           color: ${textColor};
@@ -124,7 +161,7 @@ function buildPageHtml(content: string, title: string, pageIndex: number, totalP
 const BUTTON_SIZE = 44;
 const BTN_MARGIN = 30; // Increased margin to prevent button from "hiding" in corners
 
-const ReaderFlatListWebView = ({path, title}: {path: string; title: string}) => {
+const ReaderFlatListWebView = ({path, title, language}: {path: string; title: string; language?: string}) => {
   // Raw paragraphs only — no HTML wrapping stored in state.
   // For a 500-page / 10MB book this stores ~10MB of plain strings.
   // Only the current page's HTML is ever built (via useMemo below).
@@ -151,6 +188,12 @@ const ReaderFlatListWebView = ({path, title}: {path: string; title: string}) => 
   // Persistent landscape mode
   const [isLandscape, setIsLandscape] = useAtom(landscapeModeAtom);
   const landscape = isLandscape ?? false;
+
+  // Persistent font family (per-app, remembers last chosen font)
+  const [fontFamilyId, setFontFamilyId] = useAtom(fontFamilyAtom);
+  const fontId = fontFamilyId ?? DEFAULT_FONT_FAMILY_ID;
+  const fonts = getFontList(language);
+  const currentFont = fonts.find(f => f.id === fontId) ?? fonts[0];
 
   // useRef (not createRef) — createRef makes a new object every render,
   // breaking the modal open/close ref entirely.
@@ -319,9 +362,11 @@ const ReaderFlatListWebView = ({path, title}: {path: string; title: string}) => 
       currentPage,
       paragraphs.length,
       enabled,
-      fontSize
+      fontSize,
+      currentFont.css,
+      currentFont.googleFontUrl,
     );
-  }, [paragraphs, currentPage, title, enabled, fontSize]);
+  }, [paragraphs, currentPage, title, enabled, fontSize, currentFont]);
 
   // useCallback — stable reference so child components never re-render from this
   const sendCommand = useCallback((prompt: "next" | "previous") => {
@@ -514,6 +559,52 @@ const ReaderFlatListWebView = ({path, title}: {path: string; title: string}) => 
 
                     <LineBreak />
 
+                    {/* Font picker — full width in landscape too */}
+                    <View style={styles.fontPickerSection}>
+                      <Text style={styles.fontPickerLabel}>Font</Text>
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.fontPickerRow}
+                      >
+                        {fonts.map((f) => {
+                          const selected = f.id === fontId;
+                          return (
+                            <TouchableOpacity
+                              key={f.id}
+                              onPress={() => setFontFamilyId(f.id)}
+                              style={[
+                                styles.fontBtn,
+                                selected && styles.fontBtnSelected,
+                              ]}
+                              activeOpacity={0.75}
+                            >
+                              <Text
+                                style={[
+                                  styles.fontBtnPreview,
+                                  f.nativeFont ? { fontFamily: f.nativeFont } : {},
+                                  selected && styles.fontBtnPreviewSelected,
+                                ]}
+                              >
+                                {f.preview}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.fontBtnLabel,
+                                  selected && styles.fontBtnLabelSelected,
+                                ]}
+                                numberOfLines={1}
+                              >
+                                {f.label}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </ScrollView>
+                    </View>
+
+                    <LineBreak />
+
                     {/* Row 3: Go to page | Back to Home */}
                     <View style={styles.twoColRow}>
                       <View style={styles.twoColCell}>
@@ -578,6 +669,51 @@ const ReaderFlatListWebView = ({path, title}: {path: string; title: string}) => 
                       </FlexRowContainer>
                       <Text style={[styles.fontSizeLabel, {fontSize: 20}]}>A</Text>
                     </FlexRowContainer>
+                    <LineBreak />
+
+                    {/* Font picker */}
+                    <View style={styles.fontPickerSection}>
+                      <Text style={styles.fontPickerLabel}>Font</Text>
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.fontPickerRow}
+                      >
+                        {fonts.map((f) => {
+                          const selected = f.id === fontId;
+                          return (
+                            <TouchableOpacity
+                              key={f.id}
+                              onPress={() => setFontFamilyId(f.id)}
+                              style={[
+                                styles.fontBtn,
+                                selected && styles.fontBtnSelected,
+                              ]}
+                              activeOpacity={0.75}
+                            >
+                              <Text
+                                style={[
+                                  styles.fontBtnPreview,
+                                  f.nativeFont ? { fontFamily: f.nativeFont } : {},
+                                  selected && styles.fontBtnPreviewSelected,
+                                ]}
+                              >
+                                {f.preview}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.fontBtnLabel,
+                                  selected && styles.fontBtnLabelSelected,
+                                ]}
+                                numberOfLines={1}
+                              >
+                                {f.label}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </ScrollView>
+                    </View>
                     <LineBreak />
 
                     <FlexRowContainer noneBasicStyle style={styles.rowSpaceBetween}>
@@ -717,6 +853,42 @@ const styles = StyleSheet.create({
   volumeBtnDisabled: { backgroundColor: '#ccc' },
   volumeBtnText: { color: '#fff', fontSize: 20, fontWeight: '700', lineHeight: 22 },
   fontSizeLabel: { fontWeight: '700', color: '#555', minWidth: 20, textAlign: 'center' },
+
+  // Font picker
+  fontPickerSection: { marginVertical: 6 },
+  fontPickerLabel: { fontSize: 13, fontWeight: '600', color: '#888', marginBottom: 8 },
+  fontPickerRow: { flexDirection: 'row', gap: 8, paddingVertical: 2 },
+  fontBtn: {
+    width: 72,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#ddd',
+    backgroundColor: '#fafafa',
+    alignItems: 'center',
+    gap: 4,
+  },
+  fontBtnSelected: {
+    borderColor: GradientColor[2],
+    backgroundColor: '#f0f8ff',
+  },
+  fontBtnPreview: {
+    fontSize: 18,
+    color: '#444',
+  },
+  fontBtnPreviewSelected: {
+    color: GradientColor[2],
+  },
+  fontBtnLabel: {
+    fontSize: 10,
+    color: '#666',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  fontBtnLabelSelected: {
+    color: GradientColor[2],
+  },
 });
 
 export default ReaderFlatListWebView;

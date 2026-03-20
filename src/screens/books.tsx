@@ -19,6 +19,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MainNav, RootStackParamList } from '../nav/main.nav';
 import AppUpdateChecker from '../componet/atoms/AppUpdateChecker';
 import { ISearchKeyword } from '../features/jotai/model/books';
+import { BookCoverCard } from '../componet/atoms/BookCoverCard';
 import LinearGradient from 'react-native-linear-gradient';
 import { Icon, IconKey, IconsSize } from '../componet/atoms/icons';
 import EmptyState from '../componet/atoms/container/EmptyState';
@@ -73,20 +74,15 @@ const Header = ({
 const fetchBooksByCategory = async (category: string) => {
   try {
     const booksRef = db.collection('Books');
-    const querySnapshot = await booksRef.where('genre', '==', category).get();
+    const querySnapshot = await booksRef
+      .where('genre', '==', category)
+      .where('premium_type', 'in', ['html', 'pdf'])
+      .get();
 
     const books: IBook[] = [];
     querySnapshot.forEach(doc => {
       books.push({ id: doc.id, ...doc.data() } as IBook);
     });
-
-    books.sort((a, b) => {
-      if(!a.premium) return 1;
-      if(!b.premium) return -1
-      if(!a.premium && !b.premium) return 0;
-
-      return 0
-    } );//sort by premiun
 
     return books;
   } catch (error) {
@@ -120,7 +116,7 @@ const BookListScreen = ({ navigation, route }: BookListScreenProps) => {
 
   const [books, setBooks] = useState<IBook[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('Popular');
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [filteredBooks, setFilteredBooks] = useState<IBook[]>([]);
   const [loading, setLoading] = useState(true);
   const [suggestions, setSuggestions] = useState<ISearchKeyword[]>([]);
@@ -128,7 +124,7 @@ const BookListScreen = ({ navigation, route }: BookListScreenProps) => {
   const paramCategory = route.params ? route.params.category : null;
 
   useEffect(() => {
-    if (selectedCategory !== 'Popular') {
+    if (selectedCategory) {
       fetchBooksByCategory(selectedCategory).then(res => {
         setFilteredBooks(res);
       });
@@ -150,7 +146,7 @@ const BookListScreen = ({ navigation, route }: BookListScreenProps) => {
     setFilteredBooks([]);
     if (paramCategory) setSelectedCategory(paramCategory);
     const booksRef = db.collection('Books');
-    const whereQuery = paramCategory ? where('genre', '==', paramCategory) : where("premium_type", "==", "html");
+    const whereQuery = paramCategory ? where('genre', '==', paramCategory) : where('premium_type', 'in', ['html', 'pdf']);
     const q = query(booksRef, whereQuery, orderBy('popularRating', 'desc'), orderBy('date', 'desc'));
     const subscriber = q.onSnapshot(
       querySnapshot => {
@@ -199,38 +195,16 @@ const BookListScreen = ({ navigation, route }: BookListScreenProps) => {
         disabled={isComingSoon}
         activeOpacity={0.7}
         onPress={() => navigation.navigate(MainNav.BookDeatils, { ...item, fromTab: 'Books' })}>
-        
-        {/* Book Cover */}
-        <Image 
-            style={[styles.bookCover, isComingSoon ? { opacity: 0.5, filter: [{grayscale: 1}] } as any : {}]} 
-            source={{ uri: item.coverImageUrl[0] }} 
-        />
-        
-        {/* Book Title */}
-        <View style={styles.bookInfo}>
-          <Text style={[styles.bookTitle, isComingSoon && { color: '#999' }]} numberOfLines={2}>
-            {item.title}
-          </Text>
-        </View>
 
-        {/* MODERN Coming Soon Overlay */}
-        {isComingSoon && (
-          <View style={styles.comingSoonOverlay}>
-             <LinearGradient
-                colors={['#7B5EC9', '#22B4D3']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.diagonalBanner}>
-                <Text style={styles.diagonalText}>SOON</Text>
-             </LinearGradient>
-             
-             {/* Subtle Glass Badge */}
-             <View style={styles.glassBadge}>
-                <Icon icon={IconKey.clock} size={IconsSize.xs} className={{ color: '#333' }} />
-                <Text style={styles.glassText}>Coming</Text>
-             </View>
-          </View>
-        )}
+        <BookCoverCard
+          bookType={isComingSoon ? 'comingSoon' : 'original'}
+          seed={item.id}
+          title={item.title}
+          author={item.author}
+          width={ITEM_WIDTH - 10}
+          height={130}
+        />
+
       </TouchableOpacity>
     );
   };
@@ -262,7 +236,7 @@ const BookListScreen = ({ navigation, route }: BookListScreenProps) => {
       ) : (
         <View style={styles.categoriesContainer}>
           <FlatList
-            data={['Popular', ...cachedCategories]}
+            data={cachedCategories}
             horizontal
             showsHorizontalScrollIndicator={false}
             keyExtractor={item => item}
@@ -388,14 +362,6 @@ const styles = StyleSheet.create({
   },
   bookItem: {
     flexDirection: 'column',
-    backgroundColor: 'white',
-    borderRadius: 12, // Smoother corners
-    padding: 5,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
     overflow: 'hidden',
     position: 'relative',
   },

@@ -368,6 +368,28 @@ const BookDetailsScreen: React.FC<BookDetailsScreenProps> = ({ route, navigation
     navigation.navigate(MainNav.ADS, book);
   };
 
+  // Handle listening to audio
+  const handleListenAudio = async () => {
+    const userData = await getStoreUserInfo();
+
+    await logUserActivity('listen');
+
+    if (!userData) {
+      registerModalRef.current?.open();
+      return;
+    }
+
+    const isAlbum = Array.isArray(book.audioUrl) && book.audioUrl.length > 1;
+
+    if (isAlbum) {
+      // Multi-part: show album list first — ad plays before each individual part
+      navigation.navigate(MainNav.AudioAlbum, book);
+    } else {
+      // Single audio: show ad first, then player
+      navigation.navigate(MainNav.ADS, { ...book, _adDestination: 'AudioPlayer' });
+    }
+  };
+
   const isFormValid = name.trim() !== '' && gender !== '';
 
   return (
@@ -406,13 +428,43 @@ const BookDetailsScreen: React.FC<BookDetailsScreenProps> = ({ route, navigation
           saving={savingRating}
         />
 
-        {book.premium && (
-          <GradientButton
-            style={[styles.pdfButton, { marginTop: 20 }]}
-            onPress={handleOpenPdf}
-            title={'Read Now'}
-          />
-        )}
+        <View style={{ flexDirection: 'row', width: '100%', marginTop: 20, gap: 15 }}>
+          {book.premium && (
+            <TouchableOpacity
+              style={[styles.pdfButton, { flex: 1 }]}
+              onPress={handleOpenPdf}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={['#7B5EC9', '#4B71C8', '#22B4D3']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={{ flex: 1, width: '100%', borderRadius: 30, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Icon icon={IconKey.book} size={20} className={{ color: 'white' }} />
+                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16, marginLeft: 8 }}>Read Now</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+
+          {book.audioUrl && (
+            <TouchableOpacity
+              style={[styles.pdfButton, { flex: 1 }]}
+              onPress={handleListenAudio}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={['#7B5EC9', '#4B71C8', '#22B4D3']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={{ flex: 1, width: '100%', borderRadius: 30, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Icon icon={IconKey.play} size={20} className={{ color: 'white' }} />
+                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16, marginLeft: 8 }}>Listen Audio</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <View style={{ height: 50 }} />

@@ -113,6 +113,11 @@ export const ADS = (props: IProps) => {
   }, []);
 
   const handleTransitionToDownload = () => {
+    if (book._adDestination === 'AudioPlayer') {
+      const { _adDestination, ...bookData } = book;
+      props.navigation.replace(MainNav.AudioPlayer, bookData);
+      return;
+    }
     setDownloading(true);
     downloadFile(book).then((downloadedBook) => {
       if (downloadedBook) {

@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Carousel from "react-native-reanimated-carousel";
 import type { ICarouselInstance } from "react-native-reanimated-carousel";
 import { IBook } from '../types/models/IBook';
+import { BookCoverCard } from '../componet/atoms/BookCoverCard';
 import { CategoryIcon, TechnologyIcon } from '../componet/atoms/SVG';
 import { GradientColor } from '../res/color';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -78,25 +79,36 @@ const Dashboard: React.FC<DashboardScreenProps> = (props) => {
 
 
 
-  const renderBook: ListRenderItem<IBook> = ({ item }) => (
-    // console.log('renderBook',item),
-    <TouchableOpacity 
-      onPress={()=>props.navigation.navigate(MainNav.Books,
-        {
+  const makeRenderBook = (forcedBookType?: import('../componet/atoms/BookCoverCard').BookType): ListRenderItem<IBook> =>
+    ({ item }) => (
+      <TouchableOpacity
+        onPress={() => props.navigation.navigate(MainNav.Books, {
           //@ts-ignore
           screen: MainNav.BookDeatils,
-          params: item
-        }
-      )}
-      disabled={item.premium_type == "Comming_Soon" || !item.premium_type} 
-      style={styles.bookCard}>
-      <Image 
-        source={{ uri: item.coverImageUrl[0] }} 
-        style={styles.bookCover} 
-      />
-      {/* <Text style={styles.bookTitle} numberOfLines={2}>{item.title}</Text> */}
-    </TouchableOpacity>
-  );
+          params: item,
+        })}
+        disabled={item.premium_type === 'Comming_Soon' || !item.premium_type}
+        style={styles.bookCard}>
+        <BookCoverCard
+          title={item.title}
+          author={item.author}
+          bookType={
+            forcedBookType ?? (
+              item.premium_type === 'Comming_Soon' ? 'comingSoon' :
+              item.book_type === 'short_note'      ? 'shortNote'  :
+              'original'
+            )
+          }
+          width={100}
+          height={150}
+          seed={item.id}
+        />
+      </TouchableOpacity>
+    );
+
+  const renderBook        = makeRenderBook();
+  const renderShortNote   = makeRenderBook('shortNote');
+  const renderComingSoon  = makeRenderBook('comingSoon');
 
   const RenderCategory: ListRenderItem<string> = ({ item }) => (
     <TouchableOpacity onPress={()=>props.navigation.navigate(MainNav.Books,{
@@ -181,11 +193,11 @@ const Dashboard: React.FC<DashboardScreenProps> = (props) => {
         {/* Trending Books Section */}
 
                 {/* Trending Books Section */}
-        <Text style={styles.sectionTitle}>Short Notes</Text>
+        <Text style={styles.sectionTitle}>Short Note (30 mins)</Text>
         <FlatList
           horizontal
           data={notes}
-          renderItem={renderBook}
+          renderItem={renderShortNote}
           keyExtractor={(item) => item.id}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.bookList}
@@ -206,7 +218,7 @@ const Dashboard: React.FC<DashboardScreenProps> = (props) => {
         <FlatList
           horizontal
           data={commingBooks}
-          renderItem={renderBook} 
+          renderItem={renderComingSoon}
           keyExtractor={(item) => item.id}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.bookList}

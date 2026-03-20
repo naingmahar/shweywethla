@@ -6,4 +6,5 @@ export enum JotaiPersistenceKey {
     darkMode="@DarkMode",
     fontSize="@FontSize",
     landscapeMode="@LandscapeMode",
+    fontFamily="@FontFamily",
 }

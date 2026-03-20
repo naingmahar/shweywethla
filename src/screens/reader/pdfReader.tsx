@@ -1,13 +1,37 @@
-import { StyleSheet, Dimensions, View } from 'react-native';
+import { StyleSheet, Dimensions, View, useWindowDimensions } from 'react-native';
 import Pdf from 'react-native-pdf';
 import { useAtom } from 'jotai';
+import { useEffect } from 'react';
 import { darkModeAtom } from '../../features/jotai/model/darkMode';
+import { landscapeModeAtom } from '../../features/jotai/model/landscapeMode';
+
+// Safe wrapper — module is null until native linking (pod install / rebuild)
+let Orientation: typeof import("react-native-orientation-locker").default | null = null;
+try { Orientation = require("react-native-orientation-locker").default; } catch (_) {}
 
 
 export const PdfReader = ({path}:{path:string}) => {
     const source = { uri: "file:/"+path, cache: true };
     const [darkMode] = useAtom(darkModeAtom);
     const enabled = darkMode ?? false;
+
+    // Persistent landscape mode
+    const [isLandscape] = useAtom(landscapeModeAtom);
+    const landscape = isLandscape ?? false;
+
+    // Reactive dimensions
+    const { width, height } = useWindowDimensions();
+
+    // Orientation locking
+    useEffect(() => {
+        if (!Orientation) return;
+        if (landscape) {
+            Orientation.lockToLandscape();
+        } else {
+            Orientation.lockToPortrait();
+        }
+        return () => Orientation?.lockToPortrait();
+    }, [landscape]);
 
     return (
         <View style={[styles.container, enabled ? styles.containerDark : styles.containerLight]}>
@@ -27,7 +51,13 @@ export const PdfReader = ({path}:{path:string}) => {
                 onPressLink={(uri) => {
                     console.log(`Link pressed: ${uri}`);
                 }}
-                style={styles.pdf}/>
+                style={{
+                    flex:1,
+                    width: width,
+                    height: height,
+                    backgroundColor: enabled ? '#121212' : '#fff'
+                }}
+            />
         </View>
     )
 }
@@ -37,13 +67,8 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'flex-start',
         alignItems: 'center',
-        marginTop: 25,
+        // removed marginTop: 25 to let it fill screen properly in landscape
     },
     containerLight: { backgroundColor: '#fff' },
     containerDark:  { backgroundColor: '#121212' },
-    pdf: {
-        flex:1,
-        width:Dimensions.get('window').width,
-        height:Dimensions.get('window').height,
-    }
 });

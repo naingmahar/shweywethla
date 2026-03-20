@@ -19,6 +19,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MainNav, RootStackParamList } from '../nav/main.nav';
 import AppUpdateChecker from '../componet/atoms/AppUpdateChecker';
 import { ISearchKeyword } from '../features/jotai/model/books';
+import { BookCoverCard } from '../componet/atoms/BookCoverCard';
 import LinearGradient from 'react-native-linear-gradient';
 import { Icon, IconKey, IconsSize } from '../componet/atoms/icons';
 import EmptyState from '../componet/atoms/container/EmptyState';
@@ -72,18 +73,14 @@ const Header = ({
 const fetchNotesByCategory = async (category: string) => {
   try {
     const notesRef = db.collection('Notes');
-    const querySnapshot = await notesRef.where('genre', '==', category).get();
+    const querySnapshot = await notesRef
+      .where('genre', '==', category)
+      .where('premium_type', 'in', ['html', 'pdf'])
+      .get();
 
     const notes: IBook[] = [];
     querySnapshot.forEach(doc => {
       notes.push({ id: doc.id, ...doc.data() } as IBook);
-    });
-
-    notes.sort((a, b) => {
-      if (!a.premium) return 1;
-      if (!b.premium) return -1;
-      if (!a.premium && !b.premium) return 0;
-      return 0;
     });
 
     return notes;
@@ -118,7 +115,7 @@ const NotesScreen = ({ navigation, route }: NotesScreenProps) => {
 
   const [notes, setNotes] = useState<IBook[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('Popular');
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [filteredNotes, setFilteredNotes] = useState<IBook[]>([]);
   const [loading, setLoading] = useState(true);
   const [suggestions, setSuggestions] = useState<ISearchKeyword[]>([]);
@@ -126,7 +123,7 @@ const NotesScreen = ({ navigation, route }: NotesScreenProps) => {
   const paramCategory = route.params ? route.params.category : null;
 
   useEffect(() => {
-    if (selectedCategory !== 'Popular') {
+    if (selectedCategory) {
       fetchNotesByCategory(selectedCategory).then(res => {
         setFilteredNotes(res);
       });
@@ -149,7 +146,7 @@ const NotesScreen = ({ navigation, route }: NotesScreenProps) => {
     if (paramCategory) setSelectedCategory(paramCategory);
 
     const notesRef = db.collection('Notes');
-    const whereQuery = paramCategory ? where('genre', '==', paramCategory) : where('premium_type', '==', 'html');
+    const whereQuery = paramCategory ? where('genre', '==', paramCategory) : where('premium_type', 'in', ['html', 'pdf']);
     const q = query(notesRef, whereQuery, orderBy('popularRating', 'desc'), orderBy('date', 'desc'));
 
     const subscriber = q.onSnapshot(
@@ -198,33 +195,15 @@ const NotesScreen = ({ navigation, route }: NotesScreenProps) => {
         activeOpacity={0.7}
         onPress={() => navigation.navigate(MainNav.BookDeatils, { ...item, fromTab: 'Notes' })}>
 
-        <Image
-            style={[styles.noteCover, isComingSoon ? { opacity: 0.5, filter: [{grayscale: 1}] } as any : {}]}
-            source={{ uri: item.coverImageUrl[0] }}
+        <BookCoverCard
+          bookType={isComingSoon ? 'comingSoon' : 'shortNote'}
+          seed={item.id}
+          title={item.title}
+          author={item.author}
+          width={ITEM_WIDTH - 10}
+          height={130}
         />
 
-        <View style={styles.noteInfo}>
-          <Text style={[styles.noteTitle, isComingSoon && { color: '#999' }]} numberOfLines={2}>
-            {item.title}
-          </Text>
-        </View>
-
-        {isComingSoon && (
-          <View style={styles.comingSoonOverlay}>
-             <LinearGradient
-                colors={['#7B5EC9', '#22B4D3']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.diagonalBanner}>
-                <Text style={styles.diagonalText}>SOON</Text>
-             </LinearGradient>
-
-             <View style={styles.glassBadge}>
-                <Icon icon={IconKey.clock} size={IconsSize.xs} className={{ color: '#333' }} />
-                <Text style={styles.glassText}>Coming</Text>
-             </View>
-          </View>
-        )}
       </TouchableOpacity>
     );
   };
@@ -257,7 +236,7 @@ const NotesScreen = ({ navigation, route }: NotesScreenProps) => {
       ) : (
         <View style={styles.categoriesContainer}>
           <FlatList
-            data={['Popular', ...cachedCategories]}
+            data={cachedCategories}
             horizontal
             showsHorizontalScrollIndicator={false}
             keyExtractor={item => item}
@@ -383,14 +362,6 @@ const styles = StyleSheet.create({
   },
   noteItem: {
     flexDirection: 'column',
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 5,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
     overflow: 'hidden',
     position: 'relative',
   },

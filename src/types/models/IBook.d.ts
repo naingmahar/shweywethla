@@ -16,6 +16,8 @@ export interface IBook {
   masterUrl?: string
   premium?: string[] | string
   premium_type?: 'html' | 'text' | 'pdf' | 'Comming_Soon'|null
+  book_type?: 'short_note' | 'original'
+  audioUrl?: string | string[]
 
 }
 
