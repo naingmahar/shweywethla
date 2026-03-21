@@ -167,11 +167,19 @@ function buildPageHtml(content: string, title: string, pageIndex: number, totalP
 const BUTTON_SIZE = 44;
 const BTN_MARGIN = 30; // Increased margin to prevent button from "hiding" in corners
 
-const ReaderFlatListWebView = ({path, title, language}: {path: string; title: string; language?: string}) => {
-  // Raw paragraphs only — no HTML wrapping stored in state.
-  // For a 500-page / 10MB book this stores ~10MB of plain strings.
-  // Only the current page's HTML is ever built (via useMemo below).
+const ReaderFlatListWebView = ({path, title, language, localPageDir, knownTotalPages}: {path: string; title: string; language?: string; localPageDir?: string; knownTotalPages?: number}) => {
+  // Per-page mode: pages loaded on demand from localPageDir (new downloads)
+  // Full-file mode: entire file loaded into paragraphs array (legacy downloads)
+  const isPerPageMode = !!localPageDir;
+
+  // Legacy full-file mode state
   const [paragraphs, setParagraphs] = useState<string[]>([]);
+
+  // Per-page mode state
+  const [currentPageContent, setCurrentPageContent] = useState('');
+  const [totalPageCount, setTotalPageCount] = useState(knownTotalPages ?? 0);
+  const pageCache = useRef<Map<number, string>>(new Map());
+  const prefetching = useRef<Set<number>>(new Set());
   const [currentPage, setCurrentPage] = useState(0);
   const [goToPage, setGoToPage] = useState(0);
   const [isPageRestored, setIsPageRestored] = useState(false);
@@ -349,13 +357,61 @@ const ReaderFlatListWebView = ({path, title, language}: {path: string; title: st
     };
   }, [currentPage, isPageRestored, title]);
 
-  // Step 3: Load file — runs once per path. No dark mode / fontSize dependency
-  // so theme/font changes never trigger a re-read of the 10MB file.
+  // ── Per-page mode helpers ─────────────────────────────────────────────
+  const prefetchPage = useCallback((idx: number) => {
+    if (!localPageDir) return;
+    if (idx < 0 || idx >= totalPageCount) return;
+    if (pageCache.current.has(idx) || prefetching.current.has(idx)) return;
+    prefetching.current.add(idx);
+    RNFS.readFile(`${localPageDir}/page_${idx}.txt`, 'utf8')
+      .then((content) => {
+        pageCache.current.set(idx, content);
+        // Keep cache lean: evict pages far from recently loaded
+        for (const key of pageCache.current.keys()) {
+          if (Math.abs(key - idx) > 5) pageCache.current.delete(key);
+        }
+      })
+      .catch(() => {})
+      .finally(() => prefetching.current.delete(idx));
+  }, [localPageDir, totalPageCount]);
+
+  // Step 3a: Per-page mode — load current page, preload neighbors
   useEffect(() => {
+    if (!isPerPageMode || !localPageDir) return;
+    const load = async () => {
+      setIsFileLoading(true);
+      try {
+        // Read meta if totalPageCount not yet known
+        if (totalPageCount === 0) {
+          const meta = JSON.parse(await RNFS.readFile(`${localPageDir}/meta.json`, 'utf8'));
+          setTotalPageCount(meta.totalPages);
+        }
+        // Serve from cache or disk
+        let content = pageCache.current.get(currentPage);
+        if (!content) {
+          content = await RNFS.readFile(`${localPageDir}/page_${currentPage}.txt`, 'utf8');
+          pageCache.current.set(currentPage, content);
+        }
+        setCurrentPageContent(content);
+        // Preload neighbors
+        prefetchPage(currentPage + 1);
+        prefetchPage(currentPage + 2);
+        prefetchPage(currentPage - 1);
+      } catch (err) {
+        console.error('Per-page load failed:', err);
+      } finally {
+        setIsFileLoading(false);
+      }
+    };
+    load();
+  }, [isPerPageMode, localPageDir, currentPage, totalPageCount, prefetchPage]);
+
+  // Step 3b: Legacy full-file mode — runs once per path
+  useEffect(() => {
+    if (isPerPageMode) return;
     setIsFileLoading(true);
     RNFS.readFile(path, "utf8")
       .then((content) => {
-        // Chain immediately so `content` string is not kept alive in a closure
         const parsed = content
           .split("---")
           .map((p) => p.trim())
@@ -364,30 +420,33 @@ const ReaderFlatListWebView = ({path, title, language}: {path: string; title: st
       })
       .catch((err) => console.error(err))
       .finally(() => setIsFileLoading(false));
-  }, [path]);
+  }, [path, isPerPageMode]);
 
-  // Build HTML for ONLY the current page — O(1) memory instead of O(n pages).
-  // Recomputes in <1ms on page/theme/font changes; no file re-read ever.
+  // Unified page count and content for downstream logic
+  const pageCount = isPerPageMode ? totalPageCount : paragraphs.length;
+  const pageContent = isPerPageMode ? currentPageContent : (paragraphs[currentPage] ?? '');
+
+  // Build HTML for ONLY the current page — O(1) memory.
   const currentPageHtml = useMemo(() => {
-    if (paragraphs.length === 0) return '';
+    if (pageCount === 0 || !pageContent) return '';
     return buildPageHtml(
-      paragraphs[currentPage] ?? '',
+      pageContent,
       title,
       currentPage,
-      paragraphs.length,
+      pageCount,
       enabled,
       fontSize,
       currentFont.css,
       currentFont.googleFontUrl,
     );
-  }, [paragraphs, currentPage, title, enabled, fontSize, currentFont]);
+  }, [pageContent, pageCount, currentPage, title, enabled, fontSize, currentFont]);
 
   // useCallback — stable reference so child components never re-render from this
   const sendCommand = useCallback((prompt: "next" | "previous") => {
-    if (paragraphs.length <= 1) return;
-    if (prompt === "next") setCurrentPage((c) => Math.min(c + 1, paragraphs.length - 1));
+    if (pageCount <= 1) return;
+    if (prompt === "next") setCurrentPage((c) => Math.min(c + 1, pageCount - 1));
     else setCurrentPage((c) => Math.max(c - 1, 0));
-  }, [paragraphs.length]);
+  }, [pageCount]);
 
   // useMemo — rebuilt only when page count changes, not on every render
   const INJECTED_JAVASCRIPT = useMemo(() => `
@@ -421,9 +480,9 @@ const ReaderFlatListWebView = ({path, title, language}: {path: string; title: st
         }
       }, { passive: true });
     }
-    window.__totalPages = ${paragraphs.length};
+    window.__totalPages = ${pageCount};
     true;
-  `, [paragraphs.length]);
+  `, [pageCount]);
 
   const themeBg = enabled ? '#121212' : '#fcf7ea';
 
@@ -466,7 +525,7 @@ const ReaderFlatListWebView = ({path, title, language}: {path: string; title: st
           navigate={() => navigation.navigate(MainNav.HOME as never)}
           sendCommand={sendCommand}
           currentPage={currentPage}
-          pages={paragraphs}
+          pages={isPerPageMode ? Array(pageCount).fill('') : paragraphs}
           htmlModelRef={htmlModelRef}
         >
           <WebView
@@ -549,7 +608,7 @@ const ReaderFlatListWebView = ({path, title, language}: {path: string; title: st
                         />
                         <TouchableOpacity
                           onPress={() => {
-                            if (goToPage >= 1 && goToPage <= paragraphs.length) setCurrentPage(goToPage - 1);
+                            if (goToPage >= 1 && goToPage <= pageCount) setCurrentPage(goToPage - 1);
                             htmlModelRef.current?.close();
                           }}
                           style={lsStyles.searchBtn}>
@@ -714,7 +773,7 @@ const ReaderFlatListWebView = ({path, title, language}: {path: string; title: st
                         />
                         <TouchableOpacity
                           onPress={() => {
-                            if (goToPage >= 1 && goToPage <= paragraphs.length) setCurrentPage(goToPage - 1);
+                            if (goToPage >= 1 && goToPage <= pageCount) setCurrentPage(goToPage - 1);
                             htmlModelRef.current?.close();
                           }}
                           style={styles.goToButton}>

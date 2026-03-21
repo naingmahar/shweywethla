@@ -48,6 +48,57 @@ export const createFile = async (json:string) => {
   }
 };
 
+// Preprocess an HTML book into per-page files stored in a subfolder.
+// Returns { localPageDir, totalPages } or undefined on failure.
+export const preprocessBookPages = async (
+  bookId: string,
+  localFilePath: string,
+): Promise<{ localPageDir: string; totalPages: number } | undefined> => {
+  const localPageDir = `${downloadDir}/${bookId}_pages`;
+  try {
+    // If already preprocessed, return existing dir
+    const metaPath = `${localPageDir}/meta.json`;
+    const alreadyDone = await RNFS.exists(metaPath);
+    if (alreadyDone) {
+      const meta = JSON.parse(await RNFS.readFile(metaPath, 'utf8'));
+      return { localPageDir, totalPages: meta.totalPages };
+    }
+
+    // Read original file and split into pages
+    const content = await RNFS.readFile(localFilePath, 'utf8');
+    const pages = content
+      .split('---')
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
+
+    if (pages.length === 0) return undefined;
+
+    // Create subfolder
+    const dirExists = await RNFS.exists(localPageDir);
+    if (!dirExists) await RNFS.mkdir(localPageDir);
+
+    // Write each page as a separate file
+    await Promise.all(
+      pages.map((pageContent, i) =>
+        RNFS.writeFile(`${localPageDir}/page_${i}.txt`, pageContent, 'utf8'),
+      ),
+    );
+
+    // Write meta
+    await RNFS.writeFile(
+      metaPath,
+      JSON.stringify({ totalPages: pages.length }),
+      'utf8',
+    );
+
+    console.log(`Preprocessed ${pages.length} pages for book ${bookId}`);
+    return { localPageDir, totalPages: pages.length };
+  } catch (error) {
+    console.error('preprocessBookPages failed:', error);
+    return undefined;
+  }
+};
+
 const downloadAudioFiles = async (bookId: string, audioUrl: string | string[]): Promise<string[]> => {
   const urls = Array.isArray(audioUrl) ? audioUrl : [audioUrl];
   const localPaths: string[] = [];
@@ -111,11 +162,23 @@ export const downloadFile = async (book:IBook):Promise<IBookDownloaded|undefined
         localAudioPaths = await downloadAudioFiles(book.id, book.audioUrl);
       }
 
+      // Preprocess HTML books into per-page files for fast on-demand loading
+      let localPageDir: string | undefined;
+      let totalPages: number | undefined;
+      if (bookType === 'html') {
+        const preprocessed = await preprocessBookPages(book.id, localFilePath);
+        if (preprocessed) {
+          localPageDir = preprocessed.localPageDir;
+          totalPages = preprocessed.totalPages;
+        }
+      }
+
       let downloadedBook:IBookDownloaded = {
         ...book,
         localFilePath,
         downloadedAt: new Date().toISOString(),
         ...(localAudioPaths && localAudioPaths.length > 0 ? { localAudioPaths } : {}),
+        ...(localPageDir ? { localPageDir, totalPages } : {}),
       };
       await addDownloadedBook(downloadedBook);
       await enforceStorageLimit();

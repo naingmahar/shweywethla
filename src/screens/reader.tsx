@@ -10,20 +10,26 @@ type ReaderScreenProps = NativeStackScreenProps<RootStackParamList, MainNav.Read
 
 export const Reader:React.FC<ReaderScreenProps> = ({route,navigation}) => {
     const [path,setPath] = useState<string|null>(null)
+    const [localPageDir,setLocalPageDir] = useState<string|undefined>(undefined)
+    const [totalPages,setTotalPages] = useState<number|undefined>(undefined)
     const book = route.params
     const bookType = route.params.premium_type
     useEffect(()=>{
         let isMounted = true
         downloadFile(route.params)
         .then((downloadedBook)=>{
-            if(isMounted && downloadedBook) setPath(downloadedBook.localFilePath)
+            if(isMounted && downloadedBook) {
+                setPath(downloadedBook.localFilePath)
+                setLocalPageDir(downloadedBook.localPageDir)
+                setTotalPages(downloadedBook.totalPages)
+            }
         })
         .catch((err) => console.error('Reader download error:', err))
         return () => { isMounted = false }
     },[])
     return(
        <>
-         {path != null &&  bookType == "html" && <ReaderFlatListWebView path={path} title={book.title} language={book.language}/>}
+         {path != null &&  bookType == "html" && <ReaderFlatListWebView path={path} title={book.title} language={book.language} localPageDir={localPageDir} knownTotalPages={totalPages}/>}
          {path != null &&  bookType == "text" && <TextReaderPage path={path}/>}
          {path != null &&  bookType == "pdf" && <PdfReader path={path}/>}
        </>
