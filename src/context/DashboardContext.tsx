@@ -62,7 +62,6 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
       await Promise.all([
         fetchCarousel(),
         fetchBooks(),
-        fetchNotes(),
         fetchCommingSoonBooks(),
         fetchCategories(),
         fetchKeywords(),
@@ -93,7 +92,8 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
         (error) => {
           console.error('Error fetching carousel:', error);
           resolve();
-        }
+        },
+        { onlyOnce: true }
       );
     });
   };

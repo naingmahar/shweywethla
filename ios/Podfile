@@ -22,6 +22,7 @@ pod 'leveldb-library', :modular_headers => true
 pod 'FirebaseFirestoreInternal', :modular_headers => true
 pod 'GoogleUtilities', :modular_headers => true
 pod 'FirebaseCoreExtension', :modular_headers => true
+pod 'FirebaseCrashlytics', :modular_headers => true
 
 target 'shweywethla' do
   config = use_native_modules!

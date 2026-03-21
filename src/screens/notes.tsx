@@ -111,7 +111,7 @@ const ITEM_WIDTH = (width - GAP * 4) / 3;
 
 const NotesScreen = ({ navigation, route }: NotesScreenProps) => {
   // Use cached data from context
-  const { notes: cachedNotes, categories: cachedCategories, keywords: cachedKeywords } = useDashboardContext();
+  const { categories: cachedCategories, keywords: cachedKeywords } = useDashboardContext();
 
   const [notes, setNotes] = useState<IBook[]>([]);
   const [searchQuery, setSearchQuery] = useState('');

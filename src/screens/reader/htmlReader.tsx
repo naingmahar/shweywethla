@@ -224,7 +224,7 @@ const ReaderFlatListWebView = ({path, title, language}: {path: string; title: st
   // sidePreference: 0 for left, 1 for right. Default to right (1).
   const sidePreference = useSharedValue(1); 
   const btnX = useSharedValue(snapRightX);
-  const btnY = useSharedValue(containerHeight * 0.7);
+  const btnY = useSharedValue(containerHeight * 0.5);
   const btnContext = useSharedValue({ x: 0, y: 0 });
 
   // Re-clamp when orientation flips or safe-area insets change
@@ -444,6 +444,7 @@ const ReaderFlatListWebView = ({path, title, language}: {path: string; title: st
           htmlModelRef={htmlModelRef}
         >
           <WebView
+            key={fontId}
             originWhitelist={["*"]}
             source={{ html: currentPageHtml }}
             style={styles.webview}
