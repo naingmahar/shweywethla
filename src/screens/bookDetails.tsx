@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Platform }
 import LinearGradient from 'react-native-linear-gradient';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import firestore from '@react-native-firebase/firestore';
+import { firebase, ref, get, set } from '@react-native-firebase/database';
 
 // Types
 import { IBook } from '../types/models/IBook';
@@ -25,6 +26,26 @@ import { Storage } from '../features/storage/localstorage';
 import { deviceInfo } from '../utils/deviceInfo';
 import { Colors } from '../res/color';
 import { BannerAd, BannerAdSize, TestIds, useForeground } from 'react-native-google-mobile-ads';
+
+// Firebase Realtime Database instance
+const rtdb = firebase
+  .app()
+  .database('https://shweywethla-49cb4-default-rtdb.asia-southeast1.firebasedatabase.app/');
+
+// Read user's rating for a book from RTDB (source of truth across installs)
+const getUserRatingFromRTDB = async (userId: string, bookId: string): Promise<number> => {
+  try {
+    const snapshot = await get(ref(rtdb, `userRatings/${userId}/${bookId}`));
+    return snapshot.exists() ? (snapshot.val() as number) : 0;
+  } catch {
+    return 0;
+  }
+};
+
+// Save user's rating to RTDB
+const saveUserRatingToRTDB = async (userId: string, bookId: string, stars: number): Promise<void> => {
+  await set(ref(rtdb, `userRatings/${userId}/${bookId}`), stars);
+};
 
 // Constants
 const COVER_WIDTH = 160;
@@ -239,13 +260,27 @@ const BookDetailsScreen: React.FC<BookDetailsScreenProps> = ({ route, navigation
     };
   }, []);
 
-  // Load user's own rating from AsyncStorage (per book, instant, no network)
+  // Load user's own rating from RTDB (persists across reinstalls) with AsyncStorage fallback
   // Load average rating from Firestore (aggregate only)
   useEffect(() => {
-    // 1. Load user rating from local storage
-    Storage.getItemByObjectOrArray<number>(`@bookRating_${book.id}`).then((saved) => {
-      if (saved !== null) setUserRating(saved);
-    });
+    // 1. Load user rating — RTDB is source of truth, AsyncStorage as fast local cache
+    const loadUserRating = async () => {
+      // Show cached value instantly
+      const cached = await Storage.getItemByObjectOrArray<number>(`@bookRating_${book.id}`);
+      if (cached !== null) setUserRating(cached);
+
+      // Then fetch from RTDB (authoritative — survives reinstall)
+      const userData = await getStoreUserInfo();
+      if (userData?.id) {
+        const rtdbRating = await getUserRatingFromRTDB(userData.id, book.id);
+        if (rtdbRating > 0) {
+          setUserRating(rtdbRating);
+          // Sync local cache with RTDB value
+          Storage.setItemByObjectOrArray(`@bookRating_${book.id}`, rtdbRating);
+        }
+      }
+    };
+    loadUserRating();
 
     // 2. Listen to aggregate average from Firestore (read-only)
     const ratingDoc = db.collection('bookRatings').doc(book.id);
@@ -272,14 +307,17 @@ const BookDetailsScreen: React.FC<BookDetailsScreenProps> = ({ route, navigation
       return;
     }
 
-    const previousStars = userRating; // snapshot before update
     setSavingRating(true);
     try {
-      // 1. Save to AsyncStorage (overwrite with new value)
+      // 1. Get previous rating from RTDB (authoritative — not affected by reinstall)
+      const previousStars = await getUserRatingFromRTDB(userData.id, book.id);
+
+      // 2. Save new rating to RTDB and local cache
+      await saveUserRatingToRTDB(userData.id, book.id, stars);
       await Storage.setItemByObjectOrArray(`@bookRating_${book.id}`, stars);
       setUserRating(stars);
 
-      // 2. Update Firestore aggregate
+      // 3. Update Firestore aggregate using RTDB previousStars (deduplication safe)
       const ratingDocRef = db.collection('bookRatings').doc(book.id);
       await db.runTransaction(async (transaction) => {
         const ratingSnap = await transaction.get(ratingDocRef);
@@ -289,7 +327,7 @@ const BookDetailsScreen: React.FC<BookDetailsScreenProps> = ({ route, navigation
           const currentCount = ratingSnap.data()?.ratingCount ?? 0;
 
           if (previousStars > 0) {
-            // Changing existing rating: swap old stars for new stars, count stays same
+            // Changing existing rating: swap old stars, count stays same
             transaction.update(ratingDocRef, {
               totalRating: currentTotal - previousStars + stars,
             });
