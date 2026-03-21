@@ -60,15 +60,21 @@ function getFontList(language?: string): FontOption[] {
 }
 // ──────────────────────────────────────────────────────────────────────────────
 
+// Pre-compiled regexes — avoids recompiling on every page build
+const RX_NEXT    = /--next--/g;
+const RX_3REM    = /font-size\s*:\s*3rem/gi;
+const RX_275REM  = /font-size\s*:\s*2\.75rem/gi;
+const RX_25REM   = /font-size\s*:\s*2\.5rem/gi;
+
 // Build the HTML for a single page from its raw paragraph content.
 // This keeps only ONE page's HTML in memory at a time instead of all pages.
 function buildPageHtml(content: string, title: string, pageIndex: number, totalPages: number, darkMode: boolean, fontSize: number, fontCss: string, googleFontUrl?: string): string {
   let htmlText = content;
-  htmlText = htmlText.replace(/--next--/g, "<br/>");
+  htmlText = htmlText.replace(RX_NEXT, "<br/>");
   // Normalize inline rem sizes so they scale with our font-size setting
-  htmlText = htmlText.replace(/font-size\s*:\s*3rem/gi,    `font-size: ${fontSize + 3}px`);
-  htmlText = htmlText.replace(/font-size\s*:\s*2\.75rem/gi, `font-size: ${fontSize + 1}px`);
-  htmlText = htmlText.replace(/font-size\s*:\s*2\.5rem/gi,  `font-size: ${fontSize}px`);
+  htmlText = htmlText.replace(RX_3REM,   `font-size: ${fontSize + 3}px`);
+  htmlText = htmlText.replace(RX_275REM, `font-size: ${fontSize + 1}px`);
+  htmlText = htmlText.replace(RX_25REM,  `font-size: ${fontSize}px`);
 
   const bg        = darkMode ? '#121212' : '#fcf7ea';
   const textColor = darkMode ? '#e1e1e1' : '#2c2c2c';
@@ -198,10 +204,18 @@ const ReaderFlatListWebView = ({path, title, language}: {path: string; title: st
   // useRef (not createRef) — createRef makes a new object every render,
   // breaking the modal open/close ref entirely.
   const htmlModelRef = useRef<IEsModelRefProps>(null);
+  const webViewRef = useRef<InstanceType<typeof WebView>>(null);
   const navigation = useNavigation();
 
   // Debounce timer ref — prevents hammering AsyncStorage on rapid page flips
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Inject font change into running WebView without a full remount
+  useEffect(() => {
+    if (!webViewRef.current) return;
+    const escaped = currentFont.css.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    webViewRef.current.injectJavaScript(`document.body.style.fontFamily='${escaped}';true;`);
+  }, [fontId]);
 
   // ── Draggable floating button ──────────────────────────────────────────
   // The button lives inside GestureHandlerRootView which is inside SafeAreaView
@@ -381,33 +395,45 @@ const ReaderFlatListWebView = ({path, title, language}: {path: string; title: st
     document.body.style.webkitUserSelect = 'none';
     document.body.style.webkitTouchCallout = 'none';
 
-    var totalPages = ${paragraphs.length};
-    var touchStartX = 0;
-    var touchStartY = 0;
+    if (!window.__swipeListenersAdded) {
+      window.__swipeListenersAdded = true;
+      var touchStartX = 0;
+      var touchStartY = 0;
 
-    document.addEventListener('touchstart', function(e) {
-      touchStartX = e.touches[0].clientX;
-      touchStartY = e.touches[0].clientY;
-    }, { passive: true });
+      document.addEventListener('touchstart', function(e) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+      }, { passive: true });
 
-    document.addEventListener('touchend', function(e) {
-      if (totalPages <= 1) return;
-      var touchEndX = e.changedTouches[0].clientX;
-      var touchEndY = e.changedTouches[0].clientY;
-      var diffX = Math.abs(touchEndX - touchStartX);
-      var diffY = Math.abs(touchEndY - touchStartY);
-      if (diffX < 10 && diffY < 10) {
-        if (touchStartX < window.innerWidth / 2) {
-          window.ReactNativeWebView.postMessage('previous');
-        } else {
-          window.ReactNativeWebView.postMessage('next');
+      document.addEventListener('touchend', function(e) {
+        var totalPages = window.__totalPages || 1;
+        if (totalPages <= 1) return;
+        var touchEndX = e.changedTouches[0].clientX;
+        var touchEndY = e.changedTouches[0].clientY;
+        var diffX = Math.abs(touchEndX - touchStartX);
+        var diffY = Math.abs(touchEndY - touchStartY);
+        if (diffX < 10 && diffY < 10) {
+          if (touchStartX < window.innerWidth / 2) {
+            window.ReactNativeWebView.postMessage('previous');
+          } else {
+            window.ReactNativeWebView.postMessage('next');
+          }
         }
-      }
-    }, { passive: true });
+      }, { passive: true });
+    }
+    window.__totalPages = ${paragraphs.length};
     true;
   `, [paragraphs.length]);
 
   const themeBg = enabled ? '#121212' : '#fcf7ea';
+
+  // Memoize font-size dot bar — avoids Array.from allocation on every render
+  const fontSizeDots = useMemo(() =>
+    Array.from({ length: MAX_FONT_SIZE - MIN_FONT_SIZE + 1 }, (_, i) => (
+      <View key={i} style={[styles.volumeDot, i < fontSize - MIN_FONT_SIZE ? styles.volumeDotFilled : styles.volumeDotEmpty]} />
+    )),
+    [fontSize]
+  );
 
   // Show loading screen while the file is being read from disk
   if (isFileLoading) {
@@ -444,7 +470,7 @@ const ReaderFlatListWebView = ({path, title, language}: {path: string; title: st
           htmlModelRef={htmlModelRef}
         >
           <WebView
-            key={fontId}
+            ref={webViewRef}
             originWhitelist={["*"]}
             source={{ html: currentPageHtml }}
             style={styles.webview}
@@ -619,9 +645,7 @@ const ReaderFlatListWebView = ({path, title, language}: {path: string; title: st
                           <Text style={styles.volumeBtnText}>−</Text>
                         </TouchableOpacity>
                         <View style={styles.volumeDotsRow}>
-                          {Array.from({ length: MAX_FONT_SIZE - MIN_FONT_SIZE + 1 }).map((_, i) => (
-                            <View key={i} style={[styles.volumeDot, i < fontSize - MIN_FONT_SIZE ? styles.volumeDotFilled : styles.volumeDotEmpty]} />
-                          ))}
+                          {fontSizeDots}
                         </View>
                         <TouchableOpacity
                           style={[styles.volumeBtn, fontSize >= MAX_FONT_SIZE && styles.volumeBtnDisabled]}
