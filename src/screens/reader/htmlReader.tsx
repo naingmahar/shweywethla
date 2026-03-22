@@ -210,6 +210,7 @@ const ReaderFlatListWebView = ({path, title, language, localPageDir, knownTotalP
   const [isPageRestored, setIsPageRestored] = useState(false);
   const [isFileLoading, setIsFileLoading] = useState(true);
   const [isWebViewLoading, setIsWebViewLoading] = useState(true);
+  const [fileError, setFileError] = useState<string | null>(null);
   const [showGuide, setShowGuide] = useState(false);
 
   // Reactive dimensions — updates automatically on orientation change
@@ -460,6 +461,7 @@ const ReaderFlatListWebView = ({path, title, language, localPageDir, knownTotalP
         prefetchPage(currentPage - 1);
       } catch (err) {
         console.error('Per-page load failed:', err);
+        setFileError('Failed to load page. Storage may be full or file is corrupted.');
       } finally {
         setIsFileLoading(false);
       }
@@ -479,7 +481,10 @@ const ReaderFlatListWebView = ({path, title, language, localPageDir, knownTotalP
           .filter((p) => p.length > 0);
         setParagraphs(parsed);
       })
-      .catch((err) => console.error(err))
+      .catch((err) => {
+        console.error(err);
+        setFileError('Failed to load book. The file may be missing or corrupted.');
+      })
       .finally(() => setIsFileLoading(false));
   }, [path, isPerPageMode]);
 
@@ -559,8 +564,6 @@ const ReaderFlatListWebView = ({path, title, language, localPageDir, knownTotalP
   // Show loading screen while the file is being read from disk
   if (isFileLoading) {
     return (
-      // absoluteFill View sits behind SafeAreaView and covers every pixel —
-      // including the rounded display corners — so no white bleeds through.
       <View style={[StyleSheet.absoluteFill, { backgroundColor: themeBg }]}>
         <SafeAreaView edges={['bottom', 'left', 'right']} style={styles.fullFlex}>
           <StatusBar backgroundColor="#000000" barStyle="light-content" />
@@ -569,6 +572,31 @@ const ReaderFlatListWebView = ({path, title, language, localPageDir, knownTotalP
             <Text style={[styles.loadingText, { color: enabled ? '#aaa' : '#888' }]}>
               Loading book...
             </Text>
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
+
+  // Show error screen if file failed to load
+  if (fileError) {
+    return (
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: themeBg }]}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={styles.fullFlex}>
+          <StatusBar backgroundColor="#000000" barStyle="light-content" />
+          <View style={styles.loadingContainer}>
+            <Text style={{ fontSize: 48, marginBottom: 16 }}>📖</Text>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: '#f44336', marginBottom: 8 }}>
+              Unable to Open Book
+            </Text>
+            <Text style={{ fontSize: 13, color: enabled ? '#aaa' : '#666', textAlign: 'center', paddingHorizontal: 32, lineHeight: 20 }}>
+              {fileError}
+            </Text>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={{ marginTop: 24, paddingHorizontal: 24, paddingVertical: 12, backgroundColor: GradientColor[2], borderRadius: 24 }}>
+              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Go Back</Text>
+            </TouchableOpacity>
           </View>
         </SafeAreaView>
       </View>

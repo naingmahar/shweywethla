@@ -119,15 +119,17 @@ const BookListScreen = ({ navigation, route }: BookListScreenProps) => {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [filteredBooks, setFilteredBooks] = useState<IBook[]>([]);
   const [loading, setLoading] = useState(true);
+  const [categoryLoading, setCategoryLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<ISearchKeyword[]>([]);
   const [isSearch, setIsSearch] = useState(false);
   const paramCategory = route.params ? route.params.category : null;
 
   useEffect(() => {
     if (selectedCategory) {
+      setCategoryLoading(true);
       fetchBooksByCategory(selectedCategory).then(res => {
         setFilteredBooks(res);
-      });
+      }).finally(() => setCategoryLoading(false));
     } else {
       setFilteredBooks(books);
     }
@@ -260,7 +262,12 @@ const BookListScreen = ({ navigation, route }: BookListScreenProps) => {
         </View>
       )}
 
-      {filteredBooks.length === 0 && <EmptyState />}
+      {categoryLoading && (
+        <View style={styles.categoryLoader}>
+          <ActivityIndicator size="small" color="#7B5EC9" />
+        </View>
+      )}
+      {!categoryLoading && filteredBooks.length === 0 && <EmptyState />}
 
       <FlatList
         data={filteredBooks}
@@ -317,6 +324,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  categoryLoader: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
   listContent: {
     padding: 10,
   },
@@ -362,8 +373,9 @@ const styles = StyleSheet.create({
   },
   bookItem: {
     flexDirection: 'column',
-    overflow: 'hidden',
     position: 'relative',
+    paddingBottom: 10,
+    paddingHorizontal: 4,
   },
   bookCover: {
     width: '100%',

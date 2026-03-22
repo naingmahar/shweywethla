@@ -118,15 +118,17 @@ const NotesScreen = ({ navigation, route }: NotesScreenProps) => {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [filteredNotes, setFilteredNotes] = useState<IBook[]>([]);
   const [loading, setLoading] = useState(true);
+  const [categoryLoading, setCategoryLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<ISearchKeyword[]>([]);
   const [isSearch, setIsSearch] = useState(false);
   const paramCategory = route.params ? route.params.category : null;
 
   useEffect(() => {
     if (selectedCategory) {
+      setCategoryLoading(true);
       fetchNotesByCategory(selectedCategory).then(res => {
         setFilteredNotes(res);
-      });
+      }).finally(() => setCategoryLoading(false));
     } else {
       setFilteredNotes(notes);
     }
@@ -196,7 +198,7 @@ const NotesScreen = ({ navigation, route }: NotesScreenProps) => {
         onPress={() => navigation.navigate(MainNav.BookDeatils, { ...item, fromTab: 'Notes' })}>
 
         <BookCoverCard
-          bookType={isComingSoon ? 'shortNote' : 'comingSoon'}
+          bookType={isComingSoon ? 'comingSoon' : 'shortNote'}
           showComingSoonLabel={isComingSoon}
           showShortNoteLabel={!isComingSoon}
           seed={item.id}
@@ -262,7 +264,12 @@ const NotesScreen = ({ navigation, route }: NotesScreenProps) => {
         </View>
       )}
 
-      {filteredNotes.length === 0 && <EmptyState />}
+      {categoryLoading && (
+        <View style={styles.categoryLoader}>
+          <ActivityIndicator size="small" color="#7B5EC9" />
+        </View>
+      )}
+      {!categoryLoading && filteredNotes.length === 0 && <EmptyState />}
 
       <FlatList
         data={filteredNotes}
@@ -319,6 +326,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  categoryLoader: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
   listContent: {
     padding: 10,
   },
@@ -364,8 +375,9 @@ const styles = StyleSheet.create({
   },
   noteItem: {
     flexDirection: 'column',
-    overflow: 'hidden',
     position: 'relative',
+    paddingBottom: 10,
+    paddingHorizontal: 4,
   },
   noteCover: {
     width: '100%',
