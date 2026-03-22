@@ -216,6 +216,15 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
       .finally(() => { if (isMountedRef.current) setIsFileLoading(false); });
   }, [path, isPerPageMode]);
 
+  // Scroll to restored page after legacy pages load (initialScrollIndex only works on first mount with data)
+  useEffect(() => {
+    if (isPerPageMode || allPages.length === 0 || currentPage === 0) return;
+    const t = setTimeout(() => {
+      flatListRef.current?.scrollToIndex({ index: currentPage, animated: false });
+    }, 100);
+    return () => clearTimeout(t);
+  }, [allPages.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Brightness ────────────────────────────────────────────────────────────
   useFocusEffect(useCallback(() => {
     Brightness?.setAppBrightness(brightness);
@@ -498,7 +507,11 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
               fontSize={fontSize} setFontSizeVal={setFontSizeVal}
               fonts={fonts} fontId={fontId} setFontFamilyId={setFontFamilyId}
               pageCount={pageCount}
-              setCurrentPage={page => { flatListRef.current?.scrollToIndex({ index: page - 1, animated: true }); }}
+              setCurrentPage={page => {
+                const idx = page - 1;
+                setCurrentPage(idx);
+                flatListRef.current?.scrollToIndex({ index: idx, animated: true });
+              }}
             />
           </EsModel>
         </GestureHandlerRootView>
