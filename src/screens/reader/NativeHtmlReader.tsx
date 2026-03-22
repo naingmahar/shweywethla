@@ -4,11 +4,13 @@ import {
   StatusBar, ActivityIndicator, useWindowDimensions, ScrollView,
 } from 'react-native';
 import RNFS from 'react-native-fs';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAtom } from 'jotai';
 import RenderHtml, { defaultSystemFonts } from 'react-native-render-html';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
 import { Icon, IconKey, IconsSize } from '../../componet/atoms/icons';
 import { PageOptionsModal, READING_THEMES, ThemeOption } from './PageOptionsModal';
 import { EsModel } from '../../componet/atoms/container/ModalContainer';
@@ -18,6 +20,9 @@ import { fontSizeAtom, MIN_FONT_SIZE, MAX_FONT_SIZE, DEFAULT_FONT_SIZE } from '.
 import { landscapeModeAtom } from '../../features/jotai/model/landscapeMode';
 import { fontFamilyAtom, DEFAULT_FONT_FAMILY_ID } from '../../features/jotai/model/fontFamily';
 import { GradientColor } from '../../res/color';
+
+const BUTTON_SIZE = 44;
+const BTN_MARGIN = 30;
 
 let Brightness: { getAppBrightness: () => Promise<number>; setAppBrightness: (level: number) => Promise<void> } | null = null;
 try { const mod = require('react-native-brightness'); Brightness = mod.default || mod; } catch (_) {}
@@ -68,6 +73,7 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
 }) => {
   const navigation = useNavigation();
   const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const pageOptionsRef = useRef<IEsModelRefProps>(null);
   const isMountedRef = useRef(true);
 
@@ -250,6 +256,51 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
   const pageContentHeight = height - 48 - 44; // 48 header + 44 footer
   const lineHeight = getLineHeight(fontSize, language);
 
+  // Eye care overlays — same as HTML reader
+  const dimOpacity  = (1 - brightness) * 0.85;
+  const warmOpacity = (1 - brightness) * 0.38;
+
+  // ── Draggable floating button ──────────────────────────────────────────────
+  const isLandscapeNow  = width > height;
+  const activeMargin    = isLandscapeNow ? BTN_MARGIN * 1.5 : BTN_MARGIN;
+  const containerWidth  = width  - insets.left - insets.right;
+  const containerHeight = height - insets.bottom;
+  const snapLeftX  = activeMargin;
+  const snapRightX = containerWidth - BUTTON_SIZE - activeMargin;
+  const btnMinY    = insets.top + activeMargin;
+  const btnMaxY    = containerHeight - BUTTON_SIZE - activeMargin;
+
+  const sidePreference = useSharedValue(1);
+  const btnX = useSharedValue(snapRightX);
+  const btnY = useSharedValue(containerHeight * 0.5);
+  const btnContext = useSharedValue({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const targetX = sidePreference.value === 0 ? snapLeftX : snapRightX;
+    btnX.value = withSpring(targetX);
+    btnY.value = withSpring(Math.max(btnMinY, Math.min(btnY.value, btnMaxY)));
+  }, [snapLeftX, snapRightX, btnMinY, btnMaxY]);
+
+  const openSettingsModal = useCallback(() => { pageOptionsRef.current?.open(); }, []);
+
+  const tapGesture = Gesture.Tap().onEnd(() => { runOnJS(openSettingsModal)(); });
+  const panGesture = Gesture.Pan()
+    .minDistance(10)
+    .onStart(() => { btnContext.value = { x: btnX.value, y: btnY.value }; })
+    .onUpdate(e => {
+      btnX.value = btnContext.value.x + e.translationX;
+      btnY.value = btnContext.value.y + e.translationY;
+    })
+    .onEnd(() => {
+      const snapToLeft = btnX.value < containerWidth / 2;
+      sidePreference.value = snapToLeft ? 0 : 1;
+      btnX.value = withSpring(snapToLeft ? snapLeftX : snapRightX);
+      btnY.value = withSpring(Math.max(btnMinY, Math.min(btnMaxY, btnY.value)));
+    });
+  const dragGesture = Gesture.Race(tapGesture, panGesture);
+  const floatingBtnAnimStyle = useAnimatedStyle(() => ({ left: btnX.value, top: btnY.value }));
+  // ──────────────────────────────────────────────────────────────────────────
+
   // ── tagsStyles for HTML fragments (no html/head/body wrapper) ────────────
   const tagsStyles = {
     p:          { color: textColor, fontSize, lineHeight: lineHeight, marginBottom: 10, fontFamily },
@@ -314,76 +365,65 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
   // Per-page mode: single page view with prev/next buttons
   if (isPerPageMode) {
     return (
-      <SafeAreaView style={[styles.fullFlex, { backgroundColor: bg }]}>
-        <StatusBar backgroundColor={bg} barStyle={isDarkTheme ? 'light-content' : 'dark-content'} />
-        <View style={[styles.header, { backgroundColor: bg, borderBottomColor: isDarkTheme ? '#333' : '#ddd' }]}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
-            <Icon icon={IconKey.back} size={IconsSize.normal} className={{ color: textColor }} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: textColor }]} numberOfLines={1}>{title}</Text>
-          <TouchableOpacity onPress={() => pageOptionsRef.current?.open()} style={styles.headerBtn}>
-            <Icon icon={IconKey.setting} size={IconsSize.normal} className={{ color: textColor }} />
-          </TouchableOpacity>
-        </View>
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: bg }]}>
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={styles.fullFlex}>
+          <StatusBar backgroundColor={bg} barStyle={isDarkTheme ? 'light-content' : 'dark-content'} />
+          <GestureHandlerRootView style={[styles.fullFlex, { backgroundColor: bg }]}>
+            <View style={[styles.header, { backgroundColor: bg, borderBottomColor: isDarkTheme ? '#333' : '#ddd' }]}>
+              <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
+                <Icon icon={IconKey.back} size={IconsSize.normal} className={{ color: textColor }} />
+              </TouchableOpacity>
+              <Text style={[styles.headerTitle, { color: textColor }]} numberOfLines={1}>{title}</Text>
+              <View style={styles.headerBtn} />
+            </View>
 
-        <ScrollView
-          style={{ flex: 1, backgroundColor: bg }}
-          contentContainerStyle={styles.pageContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {!!pageContent && (
-            <RenderHtml
-              contentWidth={width - 40}
-              source={{ html: pageContent }}
-              tagsStyles={tagsStyles as any}
-              baseStyle={{ color: textColor, fontSize, lineHeight: lineHeight, fontFamily }}
-              systemFonts={SYSTEM_FONTS}
-              enableExperimentalBRCollapsing
-              enableExperimentalGhostLinesPrevention
-            />
-          )}
-        </ScrollView>
+            <ScrollView style={{ flex: 1, backgroundColor: bg }} contentContainerStyle={styles.pageContent} showsVerticalScrollIndicator={false}>
+              {!!pageContent && (
+                <RenderHtml
+                  contentWidth={width - 40}
+                  source={{ html: pageContent }}
+                  tagsStyles={tagsStyles as any}
+                  baseStyle={{ color: textColor, fontSize, lineHeight: lineHeight, fontFamily }}
+                  systemFonts={SYSTEM_FONTS}
+                  enableExperimentalBRCollapsing
+                  enableExperimentalGhostLinesPrevention
+                />
+              )}
+            </ScrollView>
 
-        <View style={[styles.footer, { backgroundColor: bg, borderTopColor: isDarkTheme ? '#333' : '#ddd' }]}>
-          <TouchableOpacity
-            style={[styles.navBtn, currentPage === 0 && styles.navBtnDisabled]}
-            onPress={() => setCurrentPage(p => Math.max(0, p - 1))}
-            disabled={currentPage === 0}
-          >
-            <Text style={[styles.navBtnText, currentPage === 0 && styles.navBtnTextDisabled]}>‹</Text>
-          </TouchableOpacity>
-          <Text style={[styles.pageNum, { color: textColor }]}>{currentPage + 1} / {pageCount || 1}</Text>
-          <TouchableOpacity
-            style={[styles.navBtn, currentPage >= pageCount - 1 && styles.navBtnDisabled]}
-            onPress={() => setCurrentPage(p => Math.min(pageCount - 1, p + 1))}
-            disabled={currentPage >= pageCount - 1}
-          >
-            <Text style={[styles.navBtnText, currentPage >= pageCount - 1 && styles.navBtnTextDisabled]}>›</Text>
-          </TouchableOpacity>
-        </View>
+            <View style={[styles.footer, { backgroundColor: bg, borderTopColor: isDarkTheme ? '#333' : '#ddd' }]}>
+              <TouchableOpacity style={[styles.navBtn, currentPage === 0 && styles.navBtnDisabled]} onPress={() => setCurrentPage(p => Math.max(0, p - 1))} disabled={currentPage === 0}>
+                <Text style={[styles.navBtnText, currentPage === 0 && styles.navBtnTextDisabled]}>‹</Text>
+              </TouchableOpacity>
+              <Text style={[styles.pageNum, { color: textColor }]}>{currentPage + 1} / {pageCount || 1}</Text>
+              <TouchableOpacity style={[styles.navBtn, currentPage >= pageCount - 1 && styles.navBtnDisabled]} onPress={() => setCurrentPage(p => Math.min(pageCount - 1, p + 1))} disabled={currentPage >= pageCount - 1}>
+                <Text style={[styles.navBtnText, currentPage >= pageCount - 1 && styles.navBtnTextDisabled]}>›</Text>
+              </TouchableOpacity>
+            </View>
 
-        <EsModel ref={pageOptionsRef}>
-          <PageOptionsModal
-            modalRef={pageOptionsRef}
-            winHeight={height}
-            navigation={navigation}
-            applyTheme={applyTheme}
-            enabled={isDark ?? false}
-            setDarkMode={setDarkMode}
-            landscape={landscape ?? false}
-            setIsLandscape={setIsLandscape}
-            brightness={brightness}
-            handleBrightnessChange={handleBrightnessChange}
-            fontSize={fontSize}
-            setFontSizeVal={setFontSizeVal}
-            fonts={fonts}
-            fontId={fontId}
-            setFontFamilyId={setFontFamilyId}
-            pageCount={pageCount}
-            setCurrentPage={setCurrentPage}
-          />
-        </EsModel>
-      </SafeAreaView>
+            {dimOpacity > 0.02 && <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#000', opacity: dimOpacity, zIndex: 10 }]} />}
+            {warmOpacity > 0.02 && <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#FF8C00', opacity: warmOpacity, zIndex: 11 }]} />}
+
+            <GestureDetector gesture={dragGesture}>
+              <Animated.View style={[styles.floatingBtn, isDarkTheme ? styles.floatingBtnDark : styles.floatingBtnLight, floatingBtnAnimStyle]}>
+                <Icon icon={IconKey.setting} size={IconsSize.normal} className={{ color: isDarkTheme ? '#e1e1e1' : '#555' }} />
+              </Animated.View>
+            </GestureDetector>
+
+            <EsModel ref={pageOptionsRef}>
+              <PageOptionsModal
+                modalRef={pageOptionsRef} winHeight={height} navigation={navigation}
+                applyTheme={applyTheme} enabled={isDark ?? false} setDarkMode={setDarkMode}
+                landscape={landscape ?? false} setIsLandscape={setIsLandscape}
+                brightness={brightness} handleBrightnessChange={handleBrightnessChange}
+                fontSize={fontSize} setFontSizeVal={setFontSizeVal}
+                fonts={fonts} fontId={fontId} setFontFamilyId={setFontFamilyId}
+                pageCount={pageCount} setCurrentPage={setCurrentPage}
+              />
+            </EsModel>
+          </GestureHandlerRootView>
+        </SafeAreaView>
+      </View>
     );
   }
 
@@ -407,64 +447,63 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
   );
 
   return (
-    <SafeAreaView style={[styles.fullFlex, { backgroundColor: bg }]}>
-      <StatusBar backgroundColor={bg} barStyle={isDarkTheme ? 'light-content' : 'dark-content'} />
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: bg }]}>
+      <SafeAreaView edges={['bottom', 'left', 'right']} style={styles.fullFlex}>
+        <StatusBar backgroundColor={bg} barStyle={isDarkTheme ? 'light-content' : 'dark-content'} />
+        <GestureHandlerRootView style={[styles.fullFlex, { backgroundColor: bg }]}>
+          <View style={[styles.header, { backgroundColor: bg, borderBottomColor: isDarkTheme ? '#333' : '#ddd' }]}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
+              <Icon icon={IconKey.back} size={IconsSize.normal} className={{ color: textColor }} />
+            </TouchableOpacity>
+            <Text style={[styles.headerTitle, { color: textColor }]} numberOfLines={1}>{title}</Text>
+            <View style={styles.headerBtn} />
+          </View>
 
-      <View style={[styles.header, { backgroundColor: bg, borderBottomColor: isDarkTheme ? '#333' : '#ddd' }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
-          <Icon icon={IconKey.back} size={IconsSize.normal} className={{ color: textColor }} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: textColor }]} numberOfLines={1}>{title}</Text>
-        <TouchableOpacity onPress={() => pageOptionsRef.current?.open()} style={styles.headerBtn}>
-          <Icon icon={IconKey.setting} size={IconsSize.normal} className={{ color: textColor }} />
-        </TouchableOpacity>
-      </View>
+          <FlatList
+            ref={flatListRef}
+            data={allPages}
+            renderItem={renderPage}
+            keyExtractor={(_, i) => String(i)}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            style={{ flex: 1 }}
+            initialScrollIndex={currentPage}
+            getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
+            onMomentumScrollEnd={e => {
+              const idx = Math.round(e.nativeEvent.contentOffset.x / width);
+              setCurrentPage(idx);
+            }}
+          />
 
-      <FlatList
-        ref={flatListRef}
-        data={allPages}
-        renderItem={renderPage}
-        keyExtractor={(_, i) => String(i)}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        style={{ flex: 1 }}
-        initialScrollIndex={currentPage}
-        getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
-        onMomentumScrollEnd={e => {
-          const idx = Math.round(e.nativeEvent.contentOffset.x / width);
-          setCurrentPage(idx);
-        }}
-      />
+          <View style={[styles.footer, { backgroundColor: bg, borderTopColor: isDarkTheme ? '#333' : '#ddd' }]}>
+            <Text style={[styles.pageNum, { color: textColor }]}>{currentPage + 1} / {pageCount || 1}</Text>
+          </View>
 
-      <View style={[styles.footer, { backgroundColor: bg, borderTopColor: isDarkTheme ? '#333' : '#ddd' }]}>
-        <Text style={[styles.pageNum, { color: textColor }]}>{currentPage + 1} / {pageCount || 1}</Text>
-      </View>
+          {dimOpacity > 0.02 && <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#000', opacity: dimOpacity, zIndex: 10 }]} />}
+          {warmOpacity > 0.02 && <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#FF8C00', opacity: warmOpacity, zIndex: 11 }]} />}
 
-      <EsModel ref={pageOptionsRef}>
-        <PageOptionsModal
-          modalRef={pageOptionsRef}
-          winHeight={height}
-          navigation={navigation}
-          applyTheme={applyTheme}
-          enabled={isDark ?? false}
-          setDarkMode={setDarkMode}
-          landscape={landscape ?? false}
-          setIsLandscape={setIsLandscape}
-          brightness={brightness}
-          handleBrightnessChange={handleBrightnessChange}
-          fontSize={fontSize}
-          setFontSizeVal={setFontSizeVal}
-          fonts={fonts}
-          fontId={fontId}
-          setFontFamilyId={setFontFamilyId}
-          pageCount={pageCount}
-          setCurrentPage={page => {
-            flatListRef.current?.scrollToIndex({ index: page - 1, animated: true });
-          }}
-        />
-      </EsModel>
-    </SafeAreaView>
+          <GestureDetector gesture={dragGesture}>
+            <Animated.View style={[styles.floatingBtn, isDarkTheme ? styles.floatingBtnDark : styles.floatingBtnLight, floatingBtnAnimStyle]}>
+              <Icon icon={IconKey.setting} size={IconsSize.normal} className={{ color: isDarkTheme ? '#e1e1e1' : '#555' }} />
+            </Animated.View>
+          </GestureDetector>
+
+          <EsModel ref={pageOptionsRef}>
+            <PageOptionsModal
+              modalRef={pageOptionsRef} winHeight={height} navigation={navigation}
+              applyTheme={applyTheme} enabled={isDark ?? false} setDarkMode={setDarkMode}
+              landscape={landscape ?? false} setIsLandscape={setIsLandscape}
+              brightness={brightness} handleBrightnessChange={handleBrightnessChange}
+              fontSize={fontSize} setFontSizeVal={setFontSizeVal}
+              fonts={fonts} fontId={fontId} setFontFamilyId={setFontFamilyId}
+              pageCount={pageCount}
+              setCurrentPage={page => { flatListRef.current?.scrollToIndex({ index: page - 1, animated: true }); }}
+            />
+          </EsModel>
+        </GestureHandlerRootView>
+      </SafeAreaView>
+    </View>
   );
 };
 
@@ -492,6 +531,18 @@ const styles = StyleSheet.create({
   navBtnDisabled: { backgroundColor: 'transparent' },
   navBtnText: { fontSize: 24, fontWeight: '700', color: '#7c3aed', lineHeight: 28 },
   navBtnTextDisabled: { color: '#ccc' },
+  floatingBtn: {
+    position: 'absolute',
+    width: BUTTON_SIZE, height: BUTTON_SIZE,
+    borderRadius: BUTTON_SIZE / 2,
+    justifyContent: 'center', alignItems: 'center',
+    elevation: 8, zIndex: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3, shadowRadius: 5,
+  },
+  floatingBtnLight: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#ddd' },
+  floatingBtnDark:  { backgroundColor: '#2a2a2a', borderWidth: 1, borderColor: '#444' },
 });
 
 export default NativeHtmlReader;
