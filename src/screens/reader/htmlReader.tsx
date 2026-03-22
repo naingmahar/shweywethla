@@ -209,6 +209,7 @@ const ReaderFlatListWebView = ({path, title, language, localPageDir, knownTotalP
   const [currentPage, setCurrentPage] = useState(0);
   const [isPageRestored, setIsPageRestored] = useState(false);
   const [isFileLoading, setIsFileLoading] = useState(true);
+  const [isWebViewLoading, setIsWebViewLoading] = useState(true);
   const [showGuide, setShowGuide] = useState(false);
 
   // Reactive dimensions — updates automatically on orientation change
@@ -504,6 +505,7 @@ const ReaderFlatListWebView = ({path, title, language, localPageDir, knownTotalP
   // useCallback — stable reference so child components never re-render from this
   const sendCommand = useCallback((prompt: "next" | "previous") => {
     if (pageCount <= 1) return;
+    setIsWebViewLoading(true);
     if (prompt === "next") setCurrentPage((c) => Math.min(c + 1, pageCount - 1));
     else setCurrentPage((c) => Math.max(c - 1, 0));
   }, [pageCount]);
@@ -598,7 +600,11 @@ const ReaderFlatListWebView = ({path, title, language, localPageDir, knownTotalP
             scalesPageToFit={false}
             androidLayerType="hardware"
             cacheEnabled={false}
+            startInLoadingState={false}
             renderLoading={() => <></>}
+            onLoadStart={() => setIsWebViewLoading(true)}
+            onLoadEnd={() => setIsWebViewLoading(false)}
+            onError={() => setIsWebViewLoading(false)}
             injectedJavaScript={INJECTED_JAVASCRIPT}
             onMessage={(event) => {
               const msg = event.nativeEvent.data;
@@ -606,6 +612,13 @@ const ReaderFlatListWebView = ({path, title, language, localPageDir, knownTotalP
               else if (msg === 'previous') sendCommand('previous');
             }}
           />
+          {/* Covers the white flash while WebView renders — matches current theme bg */}
+          {isWebViewLoading && (
+            <View
+              pointerEvents="none"
+              style={[StyleSheet.absoluteFill, { backgroundColor: themeBg, zIndex: 5 }]}
+            />
+          )}
         </BookPlayerView>
 
         {/* Eye care overlays — dim + warm tint, both driven by one brightness value */}
