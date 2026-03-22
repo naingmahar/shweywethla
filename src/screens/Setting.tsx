@@ -25,7 +25,7 @@ interface IMenuItem {name:string,nav:MainNav,icon:IconKey}
 const MenuItem = (props:IMenuItem) => {
     const navigation:NavigationProp<RootStackParamList> = useNavigation();
     return(
-        <FlexRowContainer noneBasicStyle style={styles.menuContainer} onPress={()=>{navigation.navigate(props.nav)}} isTouchable>
+        <FlexRowContainer noneBasicStyle style={styles.menuContainer} onPress={()=>{navigation.navigate(props.nav as never)}} isTouchable>
             <Icon className={{marginRight:10,color:Colors.settingIcon}} size={IconsSize.lg} icon={props.icon} />
             <EsNormalText noneBasicStyle>{props.name}</EsNormalText>
         </FlexRowContainer>

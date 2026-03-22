@@ -92,7 +92,7 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
   const [brightness, setBrightness] = useState(0.8);
   const [theme, setTheme] = useState<ThemeOption>(READING_THEMES[2]); // Day default
 
-  const flatListRef = useRef<FlatList<string>>(null);
+  const flatListRef = useRef<FlatList<string[]>>(null);
   const fontSize = fontSizeAtomVal ?? DEFAULT_FONT_SIZE;
   const fonts = getFontList(language);
 
@@ -168,7 +168,7 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
   };
 
   const setFontSizeVal = (fn: (f: number | null) => number) => {
-    setFontSizeAtom(prev => {
+    setFontSizeAtom((prev: number | null) => {
       const next = fn(prev);
       return Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, next));
     });

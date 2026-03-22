@@ -337,7 +337,7 @@ const styles = StyleSheet.create({
   roundThumb: { width: 60, height: 60, borderRadius: 30, marginRight: 14 },
   squareThumb: { width: 70, height: 70, borderRadius: 10, marginRight: 14 },
   placeholderCircle: {
-    backgroundColor: GradientColor[0] + '33',
+    backgroundColor: GradientColor[1] + '33',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -346,7 +346,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  placeholderText: { fontSize: 22, fontWeight: '700', color: GradientColor[0] },
+  placeholderText: { fontSize: 22, fontWeight: '700', color: GradientColor[1] },
   thumbIcon: { fontSize: 24 },
 
   // Album detail banner

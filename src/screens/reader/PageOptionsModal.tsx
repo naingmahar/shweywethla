@@ -43,7 +43,7 @@ const THEME_ICONS: Record<string, string> = {
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 export interface PageOptionsModalProps {
-  modalRef: React.RefObject<IEsModelRefProps>;
+  modalRef: React.RefObject<IEsModelRefProps | null>;
   winHeight: number;
   navigation: any;
   applyTheme: (theme: ThemeOption) => void;
@@ -108,10 +108,10 @@ const NavButtons = ({ navigation, pageCount, setCurrentPage, modalRef, page, set
   <View style={s.navRow}>
     <TextInput value={page} onChangeText={setPage} keyboardType="number-pad" placeholder="Page" placeholderTextColor="#bbb" style={s.pageInput} />
     <TouchableOpacity onPress={() => { const n = parseInt(page); if (n >= 1 && n <= pageCount) { setCurrentPage(n - 1); modalRef.current?.close(); } }} style={s.goBtn}>
-      <Icon icon={IconKey.search} size={13} className={{ color: 'white' }} />
+      <Icon icon={IconKey.search} size={IconsSize.xs} className={{ color: 'white' }} />
     </TouchableOpacity>
     <TouchableOpacity onPress={() => navigation.navigate(MainNav.HOME as never)} style={s.homeBtn}>
-      <Icon icon={IconKey.home} size={14} className={{ color: '#fff' }} />
+      <Icon icon={IconKey.home} size={IconsSize.xs} className={{ color: '#fff' }} />
       <Text style={s.homeTxt}>Home</Text>
     </TouchableOpacity>
   </View>
