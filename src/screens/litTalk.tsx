@@ -157,14 +157,16 @@ const LitTalkScreen = () => {
 
   // Fetch authors once
   useEffect(() => {
+    let isMounted = true;
     setLoading(true);
     firestore()
       .collection('lite_talk_authors')
       .orderBy('createdAt', 'asc')
       .get()
-      .then(snap => setAuthors(snap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<Author, 'id'>) }))))
+      .then(snap => { if (isMounted) setAuthors(snap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<Author, 'id'>) }))); })
       .catch(err => console.error('LitTalk authors error:', err))
-      .finally(() => setLoading(false));
+      .finally(() => { if (isMounted) setLoading(false); });
+    return () => { isMounted = false; };
   }, []);
 
   // Fetch albums when author selected

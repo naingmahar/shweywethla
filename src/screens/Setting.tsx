@@ -50,8 +50,14 @@ const StorageLimitSection = () => {
     const [usageGB, setUsageGB] = useState(0);
 
     useEffect(() => {
-        getStorageLimitGB().then(setLimitGB);
-        getCurrentStorageUsageGB().then(setUsageGB);
+        let isMounted = true;
+        getStorageLimitGB()
+            .then(v => { if (isMounted) setLimitGB(v); })
+            .catch(err => console.error('getStorageLimitGB error:', err));
+        getCurrentStorageUsageGB()
+            .then(v => { if (isMounted) setUsageGB(v); })
+            .catch(err => console.error('getCurrentStorageUsageGB error:', err));
+        return () => { isMounted = false; };
     }, []);
 
     const change = (delta: number) => {
@@ -60,7 +66,9 @@ const StorageLimitSection = () => {
         setStorageLimitGB(next);
     };
 
-    const usedPercent = Math.min(100, Math.round((usageGB / limitGB) * 100));
+    const limitMB = limitGB * 1024;
+    const usedPercent = Math.min(100, Math.round((usageGB / limitMB) * 100));
+    const usageLabel = usageGB < 1024 ? `${usageGB} MB` : `${(usageGB / 1024).toFixed(2)} GB`;
 
     return (
         <FlexContainer fullWidth style={{ marginBottom: 20 }}>
@@ -78,7 +86,7 @@ const StorageLimitSection = () => {
                         </TouchableOpacity>
                     </View>
                 </View>
-                <Text style={storageStyles.usage}>Used: {usageGB} GB / {limitGB} GB ({usedPercent}%)</Text>
+                <Text style={storageStyles.usage}>Used: {usageLabel} / {limitGB} GB ({usedPercent}%)</Text>
                 <View style={storageStyles.progressBg}>
                     <View style={[storageStyles.progressFill, { width: `${usedPercent}%` as any, backgroundColor: usedPercent > 80 ? '#e74c3c' : '#4F46E5' }]} />
                 </View>
@@ -112,6 +120,14 @@ export const Setting = () => {
                     } 
                     /> */}
                 <StorageLimitSection />
+                <MenuGroup
+                    title="Library"
+                    items={
+                        [
+                            {icon:IconKey.calendar,name:"History",nav:MainNav.History},
+                        ]
+                    }
+                    />
                 <MenuGroup
                     title="About"
                     items={

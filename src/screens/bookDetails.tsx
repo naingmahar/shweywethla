@@ -252,10 +252,12 @@ const BookDetailsScreen: React.FC<BookDetailsScreenProps> = ({ route, navigation
 
   // Check if book is downloaded on mount
   useEffect(() => {
+    let isMounted = true;
     isBookDownloaded(book.id).then((res) => {
-      setDownloaded(!!res);
-    });
+      if (isMounted) setDownloaded(!!res);
+    }).catch(err => console.error('isBookDownloaded error:', err));
     return () => {
+      isMounted = false;
       RemoveSavedRecordAdWatch();
     };
   }, []);
@@ -263,28 +265,29 @@ const BookDetailsScreen: React.FC<BookDetailsScreenProps> = ({ route, navigation
   // Load user's own rating from RTDB (persists across reinstalls) with AsyncStorage fallback
   // Load average rating from Firestore (aggregate only)
   useEffect(() => {
+    let isMounted = true;
+
     // 1. Load user rating — RTDB is source of truth, AsyncStorage as fast local cache
     const loadUserRating = async () => {
-      // Show cached value instantly
       const cached = await Storage.getItemByObjectOrArray<number>(`@bookRating_${book.id}`);
-      if (cached !== null) setUserRating(cached);
+      if (isMounted && cached !== null) setUserRating(cached);
 
-      // Then fetch from RTDB (authoritative — survives reinstall)
       const userData = await getStoreUserInfo();
+      if (!isMounted) return;
       if (userData?.id) {
         const rtdbRating = await getUserRatingFromRTDB(userData.id, book.id);
-        if (rtdbRating > 0) {
+        if (isMounted && rtdbRating > 0) {
           setUserRating(rtdbRating);
-          // Sync local cache with RTDB value
           Storage.setItemByObjectOrArray(`@bookRating_${book.id}`, rtdbRating);
         }
       }
     };
-    loadUserRating();
+    loadUserRating().catch(err => console.error('loadUserRating error:', err));
 
     // 2. Listen to aggregate average from Firestore (read-only)
     const ratingDoc = db.collection('bookRatings').doc(book.id);
     const unsubscribe = ratingDoc.onSnapshot((doc) => {
+      if (!isMounted) return;
       if (doc.exists) {
         const data = doc.data();
         const count = data?.ratingCount ?? 0;
@@ -294,7 +297,10 @@ const BookDetailsScreen: React.FC<BookDetailsScreenProps> = ({ route, navigation
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, []);
 
   // Handle star press — supports changing rating
@@ -436,10 +442,7 @@ const BookDetailsScreen: React.FC<BookDetailsScreenProps> = ({ route, navigation
       <TouchableOpacity
         style={styles.backButton}
         onPress={() => {
-          //@ts-ignore
-          const target = (book as any).fromTab === 'Notes' ? MainNav.Notes : MainNav.Books;
-          //@ts-ignore
-          navigation.navigate(target);
+          navigation.goBack();
         }}
       >
         <Icon icon={IconKey.back} size={IconsSize.normal} className={{ color: '#7B5EC9' }} />

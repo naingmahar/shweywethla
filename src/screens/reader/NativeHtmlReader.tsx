@@ -111,32 +111,34 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
 
   // Load & parse HTML file
   useEffect(() => {
+    let isMounted = true;
     setLoading(true);
     const loadContent = async () => {
       try {
         if (localPageDir) {
-          // Multi-page: load page files sequentially
           const dir = await RNFS.readDir(localPageDir);
-          const htmlFiles = dir
-            .filter(f => f.name.endsWith('.html') || f.name.endsWith('.htm'))
+          const htmlFiles = (dir ?? [])
+            .filter(f => f.name?.endsWith('.html') || f.name?.endsWith('.htm'))
             .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
           const allParas: string[] = [];
           for (const f of htmlFiles) {
+            if (!isMounted) return;
             const html = await RNFS.readFile(f.path, 'utf8');
             allParas.push(...stripHtml(html));
           }
-          setParagraphs(allParas);
+          if (isMounted) setParagraphs(allParas);
         } else {
           const html = await RNFS.readFile(path, 'utf8');
-          setParagraphs(stripHtml(html));
+          if (isMounted) setParagraphs(stripHtml(html));
         }
       } catch (err) {
         console.error('NativeHtmlReader load error:', err);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
     loadContent();
+    return () => { isMounted = false; };
   }, [path, localPageDir]);
 
   // Restore brightness on focus, reset on blur
