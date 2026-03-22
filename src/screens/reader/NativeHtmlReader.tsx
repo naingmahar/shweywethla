@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAtom } from 'jotai';
 import RenderHtml, { defaultSystemFonts } from 'react-native-render-html';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Icon, IconKey, IconsSize } from '../../componet/atoms/icons';
 import { PageOptionsModal, READING_THEMES, ThemeOption } from './PageOptionsModal';
 import { EsModel } from '../../componet/atoms/container/ModalContainer';
@@ -16,13 +17,35 @@ import { darkModeAtom } from '../../features/jotai/model/darkMode';
 import { fontSizeAtom, MIN_FONT_SIZE, MAX_FONT_SIZE, DEFAULT_FONT_SIZE } from '../../features/jotai/model/fontSize';
 import { landscapeModeAtom } from '../../features/jotai/model/landscapeMode';
 import { fontFamilyAtom, DEFAULT_FONT_FAMILY_ID } from '../../features/jotai/model/fontFamily';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { GradientColor } from '../../res/color';
 
 let Brightness: { getAppBrightness: () => Promise<number>; setAppBrightness: (level: number) => Promise<void> } | null = null;
 try { const mod = require('react-native-brightness'); Brightness = mod.default || mod; } catch (_) {}
 
 let Orientation: typeof import('react-native-orientation-locker').default | null = null;
 try { Orientation = require('react-native-orientation-locker').default; } catch (_) {}
+
+// ── Font Options ───────────────────────────────────────────────────────────────
+const MYANMAR_FONTS = [
+  { id: 'default',  label: 'Default',  css: 'Pyidaungsu', nativeFont: 'Pyidaungsu', preview: 'က' },
+  { id: 'myanmar3', label: 'Myanmar3', css: 'Myanmar3',   nativeFont: 'Myanmar3',   preview: 'က' },
+];
+const ENGLISH_FONTS = [
+  { id: 'default',  label: 'Default',  css: 'System',              nativeFont: undefined,         preview: 'Aa' },
+  { id: 'georgia',  label: 'Georgia',  css: 'Georgia',             nativeFont: 'Georgia',         preview: 'Aa' },
+  { id: 'times',    label: 'Times New', css: 'Times New Roman',    nativeFont: 'Times New Roman', preview: 'Aa' },
+];
+
+function getFontList(language?: string) {
+  const lang = language?.toLowerCase() ?? '';
+  return lang.includes('myanmar') || lang.includes('burmese') || lang === 'mm' || lang === 'my'
+    ? MYANMAR_FONTS
+    : ENGLISH_FONTS;
+}
+
+const SYSTEM_FONTS = [...defaultSystemFonts, 'Pyidaungsu', 'Myanmar3'];
+const THEME_STORAGE_KEY = 'native_reader_theme';
+const BRIGHTNESS_STORAGE_KEY = 'native_reader_brightness';
 
 // ── Props ──────────────────────────────────────────────────────────────────────
 interface NativeHtmlReaderProps {
@@ -33,58 +56,6 @@ interface NativeHtmlReaderProps {
   knownTotalPages?: number;
 }
 
-const THEME_STORAGE_KEY = 'native_reader_theme';
-const BRIGHTNESS_STORAGE_KEY = 'native_reader_brightness';
-
-const MYANMAR_FONTS = [
-  { id: 'default',    label: 'Default',    css: 'Pyidaungsu', nativeFont: 'Pyidaungsu',  preview: 'က' },
-  { id: 'myanmar3',   label: 'Myanmar3',   css: 'Myanmar3',   nativeFont: 'Myanmar3',    preview: 'က' },
-];
-const ENGLISH_FONTS = [
-  { id: 'default',    label: 'Default',    css: 'System',     nativeFont: undefined,      preview: 'Aa' },
-  { id: 'georgia',    label: 'Georgia',    css: 'Georgia',    nativeFont: 'Georgia',      preview: 'Aa' },
-  { id: 'times',      label: 'Times New',  css: 'Times New Roman', nativeFont: 'Times New Roman', preview: 'Aa' },
-];
-
-function getFontList(language?: string) {
-  const lang = language?.toLowerCase() ?? '';
-  return lang.includes('myanmar') || lang.includes('burmese') || lang.includes('mm')
-    ? MYANMAR_FONTS
-    : ENGLISH_FONTS;
-}
-
-// Split raw HTML/text content into pages using '---' as separator
-function splitIntoPages(raw: string): string[] {
-  return raw
-    .split(/\n\s*---\s*\n/)
-    .map(chunk => chunk.trim())
-    .filter(chunk => chunk.length > 0);
-}
-
-// Combine HTML files into pages by '---' separator across all files
-async function loadPages(
-  path: string,
-  localPageDir?: string,
-  isMountedRef?: { current: boolean },
-): Promise<string[]> {
-  if (localPageDir) {
-    const dir = await RNFS.readDir(localPageDir);
-    const htmlFiles = (dir ?? [])
-      .filter(f => f.name?.endsWith('.html') || f.name?.endsWith('.htm'))
-      .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-    const allChunks: string[] = [];
-    for (const f of htmlFiles) {
-      if (isMountedRef && !isMountedRef.current) return [];
-      const html = await RNFS.readFile(f.path, 'utf8');
-      allChunks.push(...splitIntoPages(html));
-    }
-    return allChunks;
-  } else {
-    const html = await RNFS.readFile(path, 'utf8');
-    return splitIntoPages(html);
-  }
-}
-
 // ── Component ──────────────────────────────────────────────────────────────────
 const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
   path, title, language, localPageDir, knownTotalPages,
@@ -92,65 +63,161 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
   const navigation = useNavigation();
   const { width, height } = useWindowDimensions();
   const pageOptionsRef = useRef<IEsModelRefProps>(null);
+  const isMountedRef = useRef(true);
 
+  const isPerPageMode = !!localPageDir;
+
+  // ── Jotai atoms ───────────────────────────────────────────────────────────
   const [isDark, setDarkMode] = useAtom(darkModeAtom);
   const [fontSizeAtomVal, setFontSizeAtom] = useAtom(fontSizeAtom);
   const [landscape, setIsLandscape] = useAtom(landscapeModeAtom);
   const [fontFamilyId, setFontFamilyId] = useAtom(fontFamilyAtom);
 
-  const [pages, setPages] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
+  // ── State ─────────────────────────────────────────────────────────────────
+  // Per-page mode: load one page at a time
+  const [currentPageContent, setCurrentPageContent] = useState('');
+  const [totalPageCount, setTotalPageCount] = useState(knownTotalPages ?? 0);
+  const pageCache = useRef<Map<number, string>>(new Map());
+  const prefetching = useRef<Set<number>>(new Set());
+
+  // Legacy full-file mode: all pages loaded at once
+  const [allPages, setAllPages] = useState<string[]>([]);
+
   const [currentPage, setCurrentPage] = useState(0);
+  const [isPageRestored, setIsPageRestored] = useState(false);
+  const [isFileLoading, setIsFileLoading] = useState(true);
+  const [fileError, setFileError] = useState<string | null>(null);
+
   const [brightness, setBrightness] = useState(0.8);
-  const [theme, setTheme] = useState<ThemeOption>(READING_THEMES[2]); // Day default
+  const [theme, setTheme] = useState<ThemeOption>(READING_THEMES[2]);
 
   const flatListRef = useRef<FlatList<string>>(null);
-  const isMountedRef = useRef(true);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const fontSize = fontSizeAtomVal ?? DEFAULT_FONT_SIZE;
   const fonts = getFontList(language);
-  const currentFont = fonts.find(f => f.id === fontFamilyId);
+  const fontId = fontFamilyId ?? DEFAULT_FONT_FAMILY_ID;
+  const currentFont = fonts.find(f => f.id === fontId) ?? fonts[0];
+  const fontFamily = currentFont?.nativeFont ?? undefined;
 
-  // Load saved theme & brightness
+  // Unified page count and content
+  const pageCount = isPerPageMode ? totalPageCount : allPages.length;
+  const pageContent = isPerPageMode ? currentPageContent : (allPages[currentPage] ?? '');
+
+  // ── Load saved theme & brightness ─────────────────────────────────────────
   useEffect(() => {
     AsyncStorage.multiGet([THEME_STORAGE_KEY, BRIGHTNESS_STORAGE_KEY]).then(pairs => {
       const savedThemeKey = pairs[0][1];
       const savedBrightness = pairs[1][1];
       if (savedThemeKey) {
         const found = READING_THEMES.find(t => t.key === savedThemeKey);
-        if (found) setTheme(found);
+        if (found && isMountedRef.current) setTheme(found);
       }
-      if (savedBrightness) setBrightness(parseFloat(savedBrightness));
+      if (savedBrightness && isMountedRef.current) setBrightness(parseFloat(savedBrightness));
     });
+    return () => { isMountedRef.current = false; };
   }, []);
 
-  // Load & split HTML files into pages
+  // ── Step 1: Restore last read page ────────────────────────────────────────
   useEffect(() => {
-    isMountedRef.current = true;
-    setLoading(true);
-    loadPages(path, localPageDir, isMountedRef)
-      .then(chunks => {
-        if (isMountedRef.current) setPages(chunks);
+    AsyncStorage.getItem(`@last_page_${title}`)
+      .then(saved => {
+        if (saved !== null && isMountedRef.current) setCurrentPage(parseInt(saved));
       })
-      .catch(err => console.error('NativeHtmlReader load error:', err))
-      .finally(() => {
-        if (isMountedRef.current) setLoading(false);
-      });
-    return () => { isMountedRef.current = false; };
-  }, [path, localPageDir]);
+      .catch(e => console.error('Failed to load page', e))
+      .finally(() => { if (isMountedRef.current) setIsPageRestored(true); });
+  }, [title]);
 
-  // Restore brightness on focus, reset on blur
+  // ── Step 2: Debounced page save ───────────────────────────────────────────
+  useEffect(() => {
+    if (!isPageRestored) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      AsyncStorage.setItem(`@last_page_${title}`, currentPage.toString())
+        .catch(e => console.error('Failed to save page', e));
+    }, 400);
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
+  }, [currentPage, isPageRestored, title]);
+
+  // ── Prefetch helper (per-page mode) ───────────────────────────────────────
+  const prefetchPage = useCallback((idx: number) => {
+    if (!localPageDir) return;
+    if (idx < 0 || idx >= totalPageCount) return;
+    if (pageCache.current.has(idx) || prefetching.current.has(idx)) return;
+    prefetching.current.add(idx);
+    RNFS.readFile(`${localPageDir}/page_${idx}.txt`, 'utf8')
+      .then(content => {
+        pageCache.current.set(idx, content);
+        for (const key of pageCache.current.keys()) {
+          if (Math.abs(key - idx) > 5) pageCache.current.delete(key);
+        }
+      })
+      .catch(() => {})
+      .finally(() => prefetching.current.delete(idx));
+  }, [localPageDir, totalPageCount]);
+
+  // ── Step 3a: Per-page mode — load current page ────────────────────────────
+  useEffect(() => {
+    if (!isPerPageMode || !localPageDir) return;
+    const load = async () => {
+      setIsFileLoading(true);
+      try {
+        if (totalPageCount === 0) {
+          const meta = JSON.parse(await RNFS.readFile(`${localPageDir}/meta.json`, 'utf8'));
+          if (isMountedRef.current) setTotalPageCount(meta.totalPages);
+        }
+        let content = pageCache.current.get(currentPage);
+        if (!content) {
+          content = await RNFS.readFile(`${localPageDir}/page_${currentPage}.txt`, 'utf8');
+          pageCache.current.set(currentPage, content);
+        }
+        if (isMountedRef.current) setCurrentPageContent(content);
+        prefetchPage(currentPage + 1);
+        prefetchPage(currentPage + 2);
+        prefetchPage(currentPage - 1);
+      } catch (err) {
+        console.error('Per-page load failed:', err);
+        if (isMountedRef.current) setFileError('Failed to load page. Storage may be full or file is corrupted.');
+      } finally {
+        if (isMountedRef.current) setIsFileLoading(false);
+      }
+    };
+    load();
+  }, [isPerPageMode, localPageDir, currentPage, totalPageCount, prefetchPage]);
+
+  // ── Step 3b: Legacy full-file mode ────────────────────────────────────────
+  useEffect(() => {
+    if (isPerPageMode) return;
+    setIsFileLoading(true);
+    RNFS.readFile(path, 'utf8')
+      .then(content => {
+        const parsed = content
+          .split('---')
+          .map(p => p.trim())
+          .filter(p => p.length > 0);
+        if (isMountedRef.current) setAllPages(parsed);
+      })
+      .catch(err => {
+        console.error(err);
+        if (isMountedRef.current) setFileError('Failed to load book. The file may be missing or corrupted.');
+      })
+      .finally(() => { if (isMountedRef.current) setIsFileLoading(false); });
+  }, [path, isPerPageMode]);
+
+  // ── Brightness ────────────────────────────────────────────────────────────
   useFocusEffect(useCallback(() => {
     Brightness?.setAppBrightness(brightness);
     return () => { Brightness?.setAppBrightness(1.0); };
   }, [brightness]));
 
-  // Orientation lock
+  // ── Orientation ───────────────────────────────────────────────────────────
   useEffect(() => {
     if (!Orientation) return;
     landscape ? Orientation.lockToLandscape() : Orientation.lockToPortrait();
     return () => Orientation?.unlockAllOrientations();
   }, [landscape]);
 
+  // ── Theme & brightness handlers ───────────────────────────────────────────
   const applyTheme = (t: ThemeOption) => {
     setTheme(t);
     setDarkMode(t.dark);
@@ -171,26 +238,27 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
     });
   };
 
-  const totalPages = pages.length;
   const bg = theme.bg;
   const textColor = theme.color;
   const isDarkTheme = theme.dark;
+  const pageContentHeight = height - 48 - 36;
 
-  const fontFamily = currentFont?.nativeFont ?? undefined;
-  const systemFonts = [...defaultSystemFonts, 'Pyidaungsu', 'Myanmar3'];
-
-  // tagsStyles for HTML fragments (no html/head/body wrapper in source)
+  // ── tagsStyles for HTML fragments (no html/head/body wrapper) ────────────
   const tagsStyles = {
     p:          { color: textColor, fontSize, lineHeight: fontSize * 1.7, marginBottom: 10, fontFamily },
     h1:         { color: textColor, fontSize: fontSize + 8, fontWeight: '700' as const, marginBottom: 8, fontFamily },
     h2:         { color: textColor, fontSize: fontSize + 6, fontWeight: '700' as const, marginBottom: 8, fontFamily },
     h3:         { color: textColor, fontSize: fontSize + 4, fontWeight: '700' as const, marginBottom: 6, fontFamily },
     h4:         { color: textColor, fontSize: fontSize + 2, fontWeight: '700' as const, marginBottom: 6, fontFamily },
+    h5:         { color: textColor, fontSize: fontSize + 1, fontWeight: '600' as const, marginBottom: 4, fontFamily },
+    h6:         { color: textColor, fontSize,               fontWeight: '600' as const, marginBottom: 4, fontFamily },
     blockquote: { borderLeftWidth: 4, borderLeftColor: '#7c3aed', paddingLeft: 12, marginLeft: 0, color: textColor, fontStyle: 'italic' as const, fontFamily },
     pre:        { color: textColor, backgroundColor: isDarkTheme ? '#1a1a1a' : '#f5f5f5', padding: 10, borderRadius: 6, fontFamily },
     code:       { color: textColor, backgroundColor: isDarkTheme ? '#1a1a1a' : '#f5f5f5', borderRadius: 4 },
     strong:     { color: textColor, fontWeight: '700' as const, fontFamily },
+    b:          { color: textColor, fontWeight: '700' as const, fontFamily },
     em:         { color: textColor, fontStyle: 'italic' as const, fontFamily },
+    i:          { color: textColor, fontStyle: 'italic' as const, fontFamily },
     span:       { color: textColor, fontFamily },
     a:          { color: '#7c3aed' },
     li:         { color: textColor, fontSize, lineHeight: fontSize * 1.7, fontFamily },
@@ -199,32 +267,142 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
     div:        { color: textColor, fontFamily },
   };
 
-  const pageContentHeight = height - 48 - 36; // subtract header (48) + footer (36)
+  // ── Render ────────────────────────────────────────────────────────────────
+  const themeBg = bg;
 
-  const renderPage = ({ item, index }: { item: string; index: number }) => (
+  if (isFileLoading) {
+    return (
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: themeBg }]}>
+        <SafeAreaView style={styles.fullFlex}>
+          <StatusBar backgroundColor={themeBg} barStyle={isDarkTheme ? 'light-content' : 'dark-content'} />
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={GradientColor[2]} />
+            <Text style={[styles.loadingText, { color: textColor }]}>Loading book...</Text>
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
+
+  if (fileError) {
+    return (
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: themeBg }]}>
+        <SafeAreaView style={styles.fullFlex}>
+          <StatusBar backgroundColor={themeBg} barStyle={isDarkTheme ? 'light-content' : 'dark-content'} />
+          <View style={styles.loadingContainer}>
+            <Text style={{ fontSize: 48, marginBottom: 16 }}>📖</Text>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: '#f44336', marginBottom: 8 }}>Unable to Open Book</Text>
+            <Text style={{ fontSize: 13, color: textColor, textAlign: 'center', paddingHorizontal: 32, lineHeight: 20 }}>{fileError}</Text>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={{ marginTop: 24, paddingHorizontal: 24, paddingVertical: 12, backgroundColor: GradientColor[2], borderRadius: 24 }}>
+              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Go Back</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
+
+  // Per-page mode: single page view with prev/next buttons
+  if (isPerPageMode) {
+    return (
+      <SafeAreaView style={[styles.fullFlex, { backgroundColor: bg }]}>
+        <StatusBar backgroundColor={bg} barStyle={isDarkTheme ? 'light-content' : 'dark-content'} />
+        <View style={[styles.header, { backgroundColor: bg, borderBottomColor: isDarkTheme ? '#333' : '#ddd' }]}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
+            <Icon icon={IconKey.back} size={IconsSize.normal} className={{ color: textColor }} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: textColor }]} numberOfLines={1}>{title}</Text>
+          <TouchableOpacity onPress={() => pageOptionsRef.current?.open()} style={styles.headerBtn}>
+            <Icon icon={IconKey.setting} size={IconsSize.normal} className={{ color: textColor }} />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView
+          style={{ flex: 1, backgroundColor: bg }}
+          contentContainerStyle={styles.pageContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {!!pageContent && (
+            <RenderHtml
+              contentWidth={width - 40}
+              source={{ html: pageContent }}
+              tagsStyles={tagsStyles as any}
+              baseStyle={{ color: textColor, fontSize, lineHeight: fontSize * 1.7, fontFamily }}
+              systemFonts={SYSTEM_FONTS}
+              enableExperimentalBRCollapsing
+              enableExperimentalGhostLinesPrevention
+            />
+          )}
+        </ScrollView>
+
+        <View style={[styles.footer, { backgroundColor: bg, borderTopColor: isDarkTheme ? '#333' : '#ddd' }]}>
+          <TouchableOpacity
+            style={[styles.navBtn, currentPage === 0 && styles.navBtnDisabled]}
+            onPress={() => setCurrentPage(p => Math.max(0, p - 1))}
+            disabled={currentPage === 0}
+          >
+            <Text style={[styles.navBtnText, currentPage === 0 && styles.navBtnTextDisabled]}>‹</Text>
+          </TouchableOpacity>
+          <Text style={[styles.pageNum, { color: textColor }]}>{currentPage + 1} / {pageCount || 1}</Text>
+          <TouchableOpacity
+            style={[styles.navBtn, currentPage >= pageCount - 1 && styles.navBtnDisabled]}
+            onPress={() => setCurrentPage(p => Math.min(pageCount - 1, p + 1))}
+            disabled={currentPage >= pageCount - 1}
+          >
+            <Text style={[styles.navBtnText, currentPage >= pageCount - 1 && styles.navBtnTextDisabled]}>›</Text>
+          </TouchableOpacity>
+        </View>
+
+        <EsModel ref={pageOptionsRef}>
+          <PageOptionsModal
+            modalRef={pageOptionsRef}
+            winHeight={height}
+            navigation={navigation}
+            applyTheme={applyTheme}
+            enabled={isDark ?? false}
+            setDarkMode={setDarkMode}
+            landscape={landscape ?? false}
+            setIsLandscape={setIsLandscape}
+            brightness={brightness}
+            handleBrightnessChange={handleBrightnessChange}
+            fontSize={fontSize}
+            setFontSizeVal={setFontSizeVal}
+            fonts={fonts}
+            fontId={fontId}
+            setFontFamilyId={setFontFamilyId}
+            pageCount={pageCount}
+            setCurrentPage={setCurrentPage}
+          />
+        </EsModel>
+      </SafeAreaView>
+    );
+  }
+
+  // Legacy full-file mode: horizontal FlatList paging
+  const renderPage = ({ item }: { item: string }) => (
     <View style={{ width, height: pageContentHeight, backgroundColor: bg }}>
-      <ScrollView
-        contentContainerStyle={styles.pageContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <RenderHtml
-          contentWidth={width - 40}
-          source={{ html: item }}
-          tagsStyles={tagsStyles as any}
-          baseStyle={{ color: textColor, fontSize, lineHeight: fontSize * 1.7, fontFamily }}
-          systemFonts={systemFonts}
-          enableExperimentalBRCollapsing
-          enableExperimentalGhostLinesPrevention
-        />
+      <ScrollView contentContainerStyle={styles.pageContent} showsVerticalScrollIndicator={false}>
+        {!!item && (
+          <RenderHtml
+            contentWidth={width - 40}
+            source={{ html: item }}
+            tagsStyles={tagsStyles as any}
+            baseStyle={{ color: textColor, fontSize, lineHeight: fontSize * 1.7, fontFamily }}
+            systemFonts={SYSTEM_FONTS}
+            enableExperimentalBRCollapsing
+            enableExperimentalGhostLinesPrevention
+          />
+        )}
       </ScrollView>
     </View>
   );
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: bg }]}>
+    <SafeAreaView style={[styles.fullFlex, { backgroundColor: bg }]}>
       <StatusBar backgroundColor={bg} barStyle={isDarkTheme ? 'light-content' : 'dark-content'} />
 
-      {/* Header */}
       <View style={[styles.header, { backgroundColor: bg, borderBottomColor: isDarkTheme ? '#333' : '#ddd' }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
           <Icon icon={IconKey.back} size={IconsSize.normal} className={{ color: textColor }} />
@@ -235,35 +413,27 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
         </TouchableOpacity>
       </View>
 
-      {loading ? (
-        <View style={styles.loader}>
-          <ActivityIndicator size="large" color={textColor} />
-        </View>
-      ) : (
-        <FlatList
-          ref={flatListRef}
-          data={pages}
-          renderItem={renderPage}
-          keyExtractor={(_, i) => String(i)}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          style={{ flex: 1 }}
-          onMomentumScrollEnd={e => {
-            const idx = Math.round(e.nativeEvent.contentOffset.x / width);
-            setCurrentPage(idx);
-          }}
-        />
-      )}
+      <FlatList
+        ref={flatListRef}
+        data={allPages}
+        renderItem={renderPage}
+        keyExtractor={(_, i) => String(i)}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        style={{ flex: 1 }}
+        initialScrollIndex={currentPage}
+        getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
+        onMomentumScrollEnd={e => {
+          const idx = Math.round(e.nativeEvent.contentOffset.x / width);
+          setCurrentPage(idx);
+        }}
+      />
 
-      {/* Footer */}
       <View style={[styles.footer, { backgroundColor: bg, borderTopColor: isDarkTheme ? '#333' : '#ddd' }]}>
-        <Text style={[styles.pageNum, { color: textColor }]}>
-          {currentPage + 1} / {totalPages || 1}
-        </Text>
+        <Text style={[styles.pageNum, { color: textColor }]}>{currentPage + 1} / {pageCount || 1}</Text>
       </View>
 
-      {/* Page Options */}
       <EsModel ref={pageOptionsRef}>
         <PageOptionsModal
           modalRef={pageOptionsRef}
@@ -279,9 +449,9 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
           fontSize={fontSize}
           setFontSizeVal={setFontSizeVal}
           fonts={fonts}
-          fontId={fontFamilyId ?? DEFAULT_FONT_FAMILY_ID}
+          fontId={fontId}
           setFontFamilyId={setFontFamilyId}
-          pageCount={totalPages}
+          pageCount={pageCount}
           setCurrentPage={page => {
             flatListRef.current?.scrollToIndex({ index: page - 1, animated: true });
           }}
@@ -292,19 +462,29 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
 };
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
+  fullFlex: { flex: 1 },
   header: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 8, height: 48, borderBottomWidth: 1,
   },
   headerBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 15, fontWeight: '600' },
-  loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
+  loadingText: { fontSize: 15, fontWeight: '500' },
   pageContent: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 20 },
   footer: {
-    height: 36, alignItems: 'center', justifyContent: 'center', borderTopWidth: 1,
+    height: 44, flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'center', borderTopWidth: 1, gap: 16,
   },
   pageNum: { fontSize: 13 },
+  navBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#7c3aed22',
+  },
+  navBtnDisabled: { backgroundColor: 'transparent' },
+  navBtnText: { fontSize: 24, fontWeight: '700', color: '#7c3aed', lineHeight: 28 },
+  navBtnTextDisabled: { color: '#ccc' },
 });
 
 export default NativeHtmlReader;
