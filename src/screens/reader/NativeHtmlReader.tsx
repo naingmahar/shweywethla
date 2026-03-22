@@ -7,6 +7,7 @@ import RNFS from 'react-native-fs';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAtom } from 'jotai';
+import RenderHtml from 'react-native-render-html';
 import { Icon, IconKey, IconsSize } from '../../componet/atoms/icons';
 import { PageOptionsModal, READING_THEMES, ThemeOption } from './PageOptionsModal';
 import { EsModel } from '../../componet/atoms/container/ModalContainer';
@@ -22,27 +23,6 @@ try { const mod = require('react-native-brightness'); Brightness = mod.default |
 
 let Orientation: typeof import('react-native-orientation-locker').default | null = null;
 try { Orientation = require('react-native-orientation-locker').default; } catch (_) {}
-
-// ── HTML → plain paragraphs ────────────────────────────────────────────────────
-function stripHtml(html: string): string[] {
-  return html
-    .replace(/<style[\s\S]*?<\/style>/gi, '')
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n')
-    .replace(/<\/div>/gi, '\n')
-    .replace(/<\/h[1-6]>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .split('\n')
-    .map(l => l.trim())
-    .filter(l => l.length > 0);
-}
 
 // ── Props ──────────────────────────────────────────────────────────────────────
 interface NativeHtmlReaderProps {
@@ -73,6 +53,38 @@ function getFontList(language?: string) {
     : ENGLISH_FONTS;
 }
 
+// Split raw HTML/text content into pages using '---' as separator
+function splitIntoPages(raw: string): string[] {
+  return raw
+    .split(/\n\s*---\s*\n/)
+    .map(chunk => chunk.trim())
+    .filter(chunk => chunk.length > 0);
+}
+
+// Combine HTML files into pages by '---' separator across all files
+async function loadPages(
+  path: string,
+  localPageDir?: string,
+  isMountedRef?: { current: boolean },
+): Promise<string[]> {
+  if (localPageDir) {
+    const dir = await RNFS.readDir(localPageDir);
+    const htmlFiles = (dir ?? [])
+      .filter(f => f.name?.endsWith('.html') || f.name?.endsWith('.htm'))
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+    const allChunks: string[] = [];
+    for (const f of htmlFiles) {
+      if (isMountedRef && !isMountedRef.current) return [];
+      const html = await RNFS.readFile(f.path, 'utf8');
+      allChunks.push(...splitIntoPages(html));
+    }
+    return allChunks;
+  } else {
+    const html = await RNFS.readFile(path, 'utf8');
+    return splitIntoPages(html);
+  }
+}
+
 // ── Component ──────────────────────────────────────────────────────────────────
 const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
   path, title, language, localPageDir, knownTotalPages,
@@ -86,15 +98,17 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
   const [landscape, setIsLandscape] = useAtom(landscapeModeAtom);
   const [fontFamilyId, setFontFamilyId] = useAtom(fontFamilyAtom);
 
-  const [paragraphs, setParagraphs] = useState<string[]>([]);
+  const [pages, setPages] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(0);
   const [brightness, setBrightness] = useState(0.8);
   const [theme, setTheme] = useState<ThemeOption>(READING_THEMES[2]); // Day default
 
-  const flatListRef = useRef<FlatList<string[]>>(null);
+  const flatListRef = useRef<FlatList<string>>(null);
+  const isMountedRef = useRef(true);
   const fontSize = fontSizeAtomVal ?? DEFAULT_FONT_SIZE;
   const fonts = getFontList(language);
+  const currentFont = fonts.find(f => f.id === fontFamilyId);
 
   // Load saved theme & brightness
   useEffect(() => {
@@ -109,36 +123,19 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
     });
   }, []);
 
-  // Load & parse HTML file
+  // Load & split HTML files into pages
   useEffect(() => {
-    let isMounted = true;
+    isMountedRef.current = true;
     setLoading(true);
-    const loadContent = async () => {
-      try {
-        if (localPageDir) {
-          const dir = await RNFS.readDir(localPageDir);
-          const htmlFiles = (dir ?? [])
-            .filter(f => f.name?.endsWith('.html') || f.name?.endsWith('.htm'))
-            .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-          const allParas: string[] = [];
-          for (const f of htmlFiles) {
-            if (!isMounted) return;
-            const html = await RNFS.readFile(f.path, 'utf8');
-            allParas.push(...stripHtml(html));
-          }
-          if (isMounted) setParagraphs(allParas);
-        } else {
-          const html = await RNFS.readFile(path, 'utf8');
-          if (isMounted) setParagraphs(stripHtml(html));
-        }
-      } catch (err) {
-        console.error('NativeHtmlReader load error:', err);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-    loadContent();
-    return () => { isMounted = false; };
+    loadPages(path, localPageDir, isMountedRef)
+      .then(chunks => {
+        if (isMountedRef.current) setPages(chunks);
+      })
+      .catch(err => console.error('NativeHtmlReader load error:', err))
+      .finally(() => {
+        if (isMountedRef.current) setLoading(false);
+      });
+    return () => { isMountedRef.current = false; };
   }, [path, localPageDir]);
 
   // Restore brightness on focus, reset on blur
@@ -174,36 +171,47 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
     });
   };
 
-  const PARAS_PER_PAGE = 20;
-  const totalPages = Math.ceil(paragraphs.length / PARAS_PER_PAGE);
-  const pages: string[][] = [];
-  for (let i = 0; i < paragraphs.length; i += PARAS_PER_PAGE) {
-    pages.push(paragraphs.slice(i, i + PARAS_PER_PAGE));
-  }
-
-  const renderPage = ({ item, index }: { item: string[]; index: number }) => (
-    <View style={[styles.page, { width, backgroundColor: theme.bg }]}>
-      {item.map((para, pi) => (
-        <Text
-          key={pi}
-          style={[
-            styles.paragraph,
-            {
-              fontSize,
-              color: theme.color,
-              fontFamily: fonts.find(f => f.id === fontFamilyId)?.nativeFont ?? undefined,
-            },
-          ]}
-        >
-          {para}
-        </Text>
-      ))}
-    </View>
-  );
-
+  const totalPages = pages.length;
   const bg = theme.bg;
   const textColor = theme.color;
   const isDarkTheme = theme.dark;
+
+  // tagsStyles and baseStyle for RenderHtml
+  const tagsStyles = {
+    body: { color: textColor, fontFamily: currentFont?.css },
+    p: { color: textColor, fontSize, lineHeight: fontSize * 1.7, marginBottom: 10 },
+    h1: { color: textColor, fontSize: fontSize + 8, fontWeight: '700' as const, marginBottom: 8 },
+    h2: { color: textColor, fontSize: fontSize + 6, fontWeight: '700' as const, marginBottom: 8 },
+    h3: { color: textColor, fontSize: fontSize + 4, fontWeight: '700' as const, marginBottom: 6 },
+    h4: { color: textColor, fontSize: fontSize + 2, fontWeight: '700' as const, marginBottom: 6 },
+    blockquote: {
+      borderLeftWidth: 4, borderLeftColor: '#7c3aed',
+      paddingLeft: 12, marginLeft: 0,
+      color: textColor, fontStyle: 'italic' as const,
+    },
+    pre: { color: textColor, backgroundColor: isDarkTheme ? '#1a1a1a' : '#f5f5f5', padding: 10, borderRadius: 6 },
+    code: { color: textColor, backgroundColor: isDarkTheme ? '#1a1a1a' : '#f5f5f5', borderRadius: 4 },
+    strong: { color: textColor, fontWeight: '700' as const },
+    em: { color: textColor, fontStyle: 'italic' as const },
+    a: { color: '#7c3aed' },
+    li: { color: textColor, fontSize, lineHeight: fontSize * 1.7 },
+    td: { color: textColor, padding: 6, borderWidth: 1, borderColor: isDarkTheme ? '#444' : '#ddd' },
+    th: { color: textColor, padding: 6, fontWeight: '700' as const, borderWidth: 1, borderColor: isDarkTheme ? '#444' : '#ddd', backgroundColor: isDarkTheme ? '#222' : '#f0f0f0' },
+    div: { color: textColor },
+  };
+
+  const renderPage = ({ item, index }: { item: string; index: number }) => (
+    <View style={[styles.page, { width, backgroundColor: bg }]}>
+      <RenderHtml
+        contentWidth={width - 40}
+        source={{ html: item }}
+        tagsStyles={tagsStyles as any}
+        baseStyle={{ color: textColor, fontSize, lineHeight: fontSize * 1.7, fontFamily: currentFont?.css }}
+        enableExperimentalBRCollapsing
+        enableExperimentalGhostLinesPrevention
+      />
+    </View>
+  );
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: bg }]}>
@@ -285,7 +293,6 @@ const styles = StyleSheet.create({
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 15, fontWeight: '600' },
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   page: { paddingHorizontal: 20, paddingTop: 16 },
-  paragraph: { lineHeight: 28, marginBottom: 12 },
   footer: {
     height: 36, alignItems: 'center', justifyContent: 'center', borderTopWidth: 1,
   },
