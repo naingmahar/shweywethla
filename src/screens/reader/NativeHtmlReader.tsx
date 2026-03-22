@@ -7,7 +7,7 @@ import RNFS from 'react-native-fs';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAtom } from 'jotai';
-import RenderHtml from 'react-native-render-html';
+import RenderHtml, { defaultSystemFonts } from 'react-native-render-html';
 import { Icon, IconKey, IconsSize } from '../../componet/atoms/icons';
 import { PageOptionsModal, READING_THEMES, ThemeOption } from './PageOptionsModal';
 import { EsModel } from '../../componet/atoms/container/ModalContainer';
@@ -176,28 +176,27 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
   const textColor = theme.color;
   const isDarkTheme = theme.dark;
 
-  // tagsStyles and baseStyle for RenderHtml
+  const fontFamily = currentFont?.nativeFont ?? undefined;
+  const systemFonts = [...defaultSystemFonts, 'Pyidaungsu', 'Myanmar3'];
+
+  // tagsStyles for HTML fragments (no html/head/body wrapper in source)
   const tagsStyles = {
-    body: { color: textColor, fontFamily: currentFont?.css },
-    p: { color: textColor, fontSize, lineHeight: fontSize * 1.7, marginBottom: 10 },
-    h1: { color: textColor, fontSize: fontSize + 8, fontWeight: '700' as const, marginBottom: 8 },
-    h2: { color: textColor, fontSize: fontSize + 6, fontWeight: '700' as const, marginBottom: 8 },
-    h3: { color: textColor, fontSize: fontSize + 4, fontWeight: '700' as const, marginBottom: 6 },
-    h4: { color: textColor, fontSize: fontSize + 2, fontWeight: '700' as const, marginBottom: 6 },
-    blockquote: {
-      borderLeftWidth: 4, borderLeftColor: '#7c3aed',
-      paddingLeft: 12, marginLeft: 0,
-      color: textColor, fontStyle: 'italic' as const,
-    },
-    pre: { color: textColor, backgroundColor: isDarkTheme ? '#1a1a1a' : '#f5f5f5', padding: 10, borderRadius: 6 },
-    code: { color: textColor, backgroundColor: isDarkTheme ? '#1a1a1a' : '#f5f5f5', borderRadius: 4 },
-    strong: { color: textColor, fontWeight: '700' as const },
-    em: { color: textColor, fontStyle: 'italic' as const },
-    a: { color: '#7c3aed' },
-    li: { color: textColor, fontSize, lineHeight: fontSize * 1.7 },
-    td: { color: textColor, padding: 6, borderWidth: 1, borderColor: isDarkTheme ? '#444' : '#ddd' },
-    th: { color: textColor, padding: 6, fontWeight: '700' as const, borderWidth: 1, borderColor: isDarkTheme ? '#444' : '#ddd', backgroundColor: isDarkTheme ? '#222' : '#f0f0f0' },
-    div: { color: textColor },
+    p:          { color: textColor, fontSize, lineHeight: fontSize * 1.7, marginBottom: 10, fontFamily },
+    h1:         { color: textColor, fontSize: fontSize + 8, fontWeight: '700' as const, marginBottom: 8, fontFamily },
+    h2:         { color: textColor, fontSize: fontSize + 6, fontWeight: '700' as const, marginBottom: 8, fontFamily },
+    h3:         { color: textColor, fontSize: fontSize + 4, fontWeight: '700' as const, marginBottom: 6, fontFamily },
+    h4:         { color: textColor, fontSize: fontSize + 2, fontWeight: '700' as const, marginBottom: 6, fontFamily },
+    blockquote: { borderLeftWidth: 4, borderLeftColor: '#7c3aed', paddingLeft: 12, marginLeft: 0, color: textColor, fontStyle: 'italic' as const, fontFamily },
+    pre:        { color: textColor, backgroundColor: isDarkTheme ? '#1a1a1a' : '#f5f5f5', padding: 10, borderRadius: 6, fontFamily },
+    code:       { color: textColor, backgroundColor: isDarkTheme ? '#1a1a1a' : '#f5f5f5', borderRadius: 4 },
+    strong:     { color: textColor, fontWeight: '700' as const, fontFamily },
+    em:         { color: textColor, fontStyle: 'italic' as const, fontFamily },
+    span:       { color: textColor, fontFamily },
+    a:          { color: '#7c3aed' },
+    li:         { color: textColor, fontSize, lineHeight: fontSize * 1.7, fontFamily },
+    td:         { color: textColor, padding: 6, borderWidth: 1, borderColor: isDarkTheme ? '#444' : '#ddd', fontFamily },
+    th:         { color: textColor, padding: 6, fontWeight: '700' as const, borderWidth: 1, borderColor: isDarkTheme ? '#444' : '#ddd', backgroundColor: isDarkTheme ? '#222' : '#f0f0f0', fontFamily },
+    div:        { color: textColor, fontFamily },
   };
 
   const pageContentHeight = height - 48 - 36; // subtract header (48) + footer (36)
@@ -212,7 +211,8 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
           contentWidth={width - 40}
           source={{ html: item }}
           tagsStyles={tagsStyles as any}
-          baseStyle={{ color: textColor, fontSize, lineHeight: fontSize * 1.7, fontFamily: currentFont?.css }}
+          baseStyle={{ color: textColor, fontSize, lineHeight: fontSize * 1.7, fontFamily }}
+          systemFonts={systemFonts}
           enableExperimentalBRCollapsing
           enableExperimentalGhostLinesPrevention
         />
