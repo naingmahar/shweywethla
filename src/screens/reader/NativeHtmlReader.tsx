@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
-  StatusBar, ActivityIndicator, useWindowDimensions,
+  StatusBar, ActivityIndicator, useWindowDimensions, ScrollView,
 } from 'react-native';
 import RNFS from 'react-native-fs';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -200,16 +200,23 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
     div: { color: textColor },
   };
 
+  const pageContentHeight = height - 48 - 36; // subtract header (48) + footer (36)
+
   const renderPage = ({ item, index }: { item: string; index: number }) => (
-    <View style={[styles.page, { width, backgroundColor: bg }]}>
-      <RenderHtml
-        contentWidth={width - 40}
-        source={{ html: item }}
-        tagsStyles={tagsStyles as any}
-        baseStyle={{ color: textColor, fontSize, lineHeight: fontSize * 1.7, fontFamily: currentFont?.css }}
-        enableExperimentalBRCollapsing
-        enableExperimentalGhostLinesPrevention
-      />
+    <View style={{ width, height: pageContentHeight, backgroundColor: bg }}>
+      <ScrollView
+        contentContainerStyle={styles.pageContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <RenderHtml
+          contentWidth={width - 40}
+          source={{ html: item }}
+          tagsStyles={tagsStyles as any}
+          baseStyle={{ color: textColor, fontSize, lineHeight: fontSize * 1.7, fontFamily: currentFont?.css }}
+          enableExperimentalBRCollapsing
+          enableExperimentalGhostLinesPrevention
+        />
+      </ScrollView>
     </View>
   );
 
@@ -241,6 +248,7 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
+          style={{ flex: 1 }}
           onMomentumScrollEnd={e => {
             const idx = Math.round(e.nativeEvent.contentOffset.x / width);
             setCurrentPage(idx);
@@ -292,7 +300,7 @@ const styles = StyleSheet.create({
   headerBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 15, fontWeight: '600' },
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  page: { paddingHorizontal: 20, paddingTop: 16 },
+  pageContent: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 20 },
   footer: {
     height: 36, alignItems: 'center', justifyContent: 'center', borderTopWidth: 1,
   },
