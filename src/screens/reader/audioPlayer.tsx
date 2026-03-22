@@ -11,7 +11,8 @@ import {
   SafeAreaView,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp, NavigationProp } from '@react-navigation/native';
+import { MainNav, RootStackParamList } from '../../nav/main.nav';
 import Video, { type VideoRef, type OnLoadData, type OnProgressData } from 'react-native-video';
 import { useAtom } from 'jotai';
 
@@ -19,7 +20,7 @@ import { darkModeAtom } from '../../features/jotai/model/darkMode';
 import { Icon, IconKey, IconsSize } from '../../componet/atoms/icons';
 import { IBook, IBookDownloaded } from '../../types/models/IBook';
 
-type AudioPlayerRoute = RouteProp<{ AudioPlayer: IBook }, 'AudioPlayer'>;
+type AudioPlayerRoute = RouteProp<{ AudioPlayer: IBook & { _episodeList?: any[]; _episodeIndex?: number } }, 'AudioPlayer'>;
 
 const { width } = Dimensions.get('window');
 const COVER_SIZE = width - 80;
@@ -35,9 +36,26 @@ const formatTime = (seconds: number): string => {
 };
 
 export const AudioPlayerScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const route = useRoute<AudioPlayerRoute>();
   const book = route.params;
+
+  const episodeList: any[] = book._episodeList ?? [];
+  const episodeIndex: number = book._episodeIndex ?? -1;
+  const hasPrev = episodeIndex > 0;
+  const hasNext = episodeIndex >= 0 && episodeIndex < episodeList.length - 1;
+  const showEpisodeNav = episodeList.length > 1;
+
+  const goToEpisode = (idx: number) => {
+    setPaused(true);
+    const ep = episodeList[idx];
+    navigation.navigate(MainNav.ADS, {
+      ...ep,
+      _adDestination: 'AudioPlayer',
+      _episodeList: episodeList,
+      _episodeIndex: idx,
+    });
+  };
 
   const [isDark] = useAtom(darkModeAtom);
   const videoRef = useRef<VideoRef>(null);
@@ -232,6 +250,31 @@ export const AudioPlayerScreen = () => {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Episode Prev / Next */}
+      {showEpisodeNav && (
+        <View style={styles.episodeNavRow}>
+          <TouchableOpacity
+            style={[styles.episodeNavBtn, { backgroundColor: controlBg, opacity: hasPrev ? 1 : 0.3 }]}
+            onPress={() => hasPrev && goToEpisode(episodeIndex - 1)}
+            activeOpacity={hasPrev ? 0.7 : 1}
+          >
+            <Text style={[styles.episodeNavText, { color: textColor }]}>‹ Prev</Text>
+          </TouchableOpacity>
+
+          <Text style={[styles.episodeCounter, { color: subtextColor }]}>
+            {episodeIndex + 1} / {episodeList.length}
+          </Text>
+
+          <TouchableOpacity
+            style={[styles.episodeNavBtn, { backgroundColor: controlBg, opacity: hasNext ? 1 : 0.3 }]}
+            onPress={() => hasNext && goToEpisode(episodeIndex + 1)}
+            activeOpacity={hasNext ? 0.7 : 1}
+          >
+            <Text style={[styles.episodeNavText, { color: textColor }]}>Next ›</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </SafeAreaView>
   );
 };
@@ -327,4 +370,18 @@ const styles = StyleSheet.create({
   speedRow: { alignItems: 'center', marginTop: 28 },
   speedBtn: { paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5 },
   speedText: { fontSize: 14, fontWeight: '700', letterSpacing: 0.5 },
+  episodeNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 32,
+    marginTop: 20,
+  },
+  episodeNavBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  episodeNavText: { fontSize: 15, fontWeight: '700' },
+  episodeCounter: { fontSize: 13, fontWeight: '500' },
 });

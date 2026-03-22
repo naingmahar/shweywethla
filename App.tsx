@@ -41,7 +41,6 @@ import AdAlert from './src/componet/atoms/modal/AdAlert';
 import { notificationListener, requestUserPermission } from './src/services/NotificationService';
 import { DashboardProvider } from './src/context/DashboardContext';
 import crashlytics from '@react-native-firebase/crashlytics';
-import { VPNSuggestion } from './src/componet/atoms/modal/VPNSuggestion';
 import { RatingRequest, trackAppSession } from './src/componet/atoms/modal/RatingRequest';
 
 type SectionProps = PropsWithChildren<{
@@ -115,7 +114,6 @@ function App(): React.JSX.Element {
       >
         <AppUpdateChecker />
         <AdAlert  />
-        <VPNSuggestion />
         <RatingRequest />
         {/* <RecoilRoot> */}
         <Provider>

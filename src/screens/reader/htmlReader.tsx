@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, StyleSheet, Text, ActivityIndicator, TouchableOpacity, Pressable, Switch, TextInput, ScrollView, useWindowDimensions, StatusBar } from "react-native";
+import { View, StyleSheet, Text, ActivityIndicator, TouchableOpacity, useWindowDimensions, StatusBar } from "react-native";
+// Safe wrapper — null until native module is linked (rebuild required)
+let Brightness: { getAppBrightness: () => Promise<number>; setAppBrightness: (level: number) => Promise<void> } | null = null;
+try { const mod = require('react-native-brightness'); Brightness = mod.default || mod; } catch (_) {}
 import { WebView } from "react-native-webview";
 import RNFS from "react-native-fs";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -8,7 +11,7 @@ import { FlexContainer, FlexRowContainer } from "../../componet/atoms/container/
 import { Icon, IconKey, IconsSize } from "../../componet/atoms/icons";
 import { EsModel } from "../../componet/atoms/container/ModalContainer";
 import { IEsModelRefProps } from "../../componet/atoms/Types/IModal";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { MainNav } from "../../nav/main.nav";
 import { BookPlayerView } from "./BookPlayerView";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
@@ -16,6 +19,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 
 import { LineBreak } from "../../componet/atoms/container/CardContainer";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ReaderGuideModal } from "../../componet/atoms/modal/ReaderGuideModal";
+import { PageOptionsModal, READING_THEMES } from "./PageOptionsModal";
 import { useAtom } from "jotai";
 import { darkModeAtom } from "../../features/jotai/model/darkMode";
 import { fontSizeAtom, MIN_FONT_SIZE, MAX_FONT_SIZE, DEFAULT_FONT_SIZE } from "../../features/jotai/model/fontSize";
@@ -76,6 +80,26 @@ function buildPageHtml(content: string, title: string, pageIndex: number, totalP
   htmlText = htmlText.replace(RX_275REM, `font-size: ${fontSize + 1}px`);
   htmlText = htmlText.replace(RX_25REM,  `font-size: ${fontSize}px`);
 
+  // Strip inline color / font-family / background from style attributes so
+  // dark-mode and light-mode theme colours are never overridden by book HTML.
+  const stripInlineStyles = (raw: string) =>
+    raw
+      .replace(/\bbackground(-color)?\s*:[^;]+;?\s*/gi, '')
+      .replace(/\bcolor\s*:[^;]+;?\s*/gi, '')
+      .replace(/\bfont-family\s*:[^;]+;?\s*/gi, '')
+      .trim();
+
+  htmlText = htmlText.replace(/style\s*=\s*"([^"]*)"/gi, (_, s) => {
+    const cleaned = stripInlineStyles(s);
+    return cleaned ? `style="${cleaned}"` : '';
+  });
+  htmlText = htmlText.replace(/style\s*=\s*'([^']*)'/gi, (_, s) => {
+    const cleaned = stripInlineStyles(s);
+    return cleaned ? `style='${cleaned}'` : '';
+  });
+  // Remove leftover <font> tags that carry color/face attributes
+  htmlText = htmlText.replace(/<font[^>]*>/gi, '').replace(/<\/font>/gi, '');
+
   const bg        = darkMode ? '#121212' : '#fcf7ea';
   const textColor = darkMode ? '#e1e1e1' : '#2c2c2c';
   const headerColor = darkMode ? '#aaa' : '#999';
@@ -91,14 +115,16 @@ function buildPageHtml(content: string, title: string, pageIndex: number, totalP
       ${googleFontUrl ? `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="${googleFontUrl}">` : ''}
       <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        /* Force all inline colors/backgrounds to use theme — !important overrides any inline style attribute */
+        * { color: ${textColor} !important; background-color: transparent !important; font-family: inherit !important; }
         body {
           font-family: ${fontCss};
           font-size: ${fontSize}px;
           line-height: 1.85;
-          color: ${textColor};
+          color: ${textColor} !important;
           margin: 0;
           padding: 16px 8px 80px 8px;
-          background-color: ${bg};
+          background-color: ${bg} !important;
           word-break: break-word;
           text-align: justify;
           -webkit-hyphens: auto;
@@ -112,7 +138,7 @@ function buildPageHtml(content: string, title: string, pageIndex: number, totalP
           margin-bottom: 20px;
           border-bottom: 1px solid ${darkMode ? '#333' : '#d0c9b5'};
           font-size: 14px;
-          color: ${headerColor};
+          color: ${headerColor} !important;
         }
         .page-header .book-title {
           flex: 1;
@@ -125,17 +151,17 @@ function buildPageHtml(content: string, title: string, pageIndex: number, totalP
         }
         .page-header .page-num { font-weight: 700; white-space: nowrap; }
         p { margin: 0 0 16px 0; text-align: justify; }
-        h1 { font-size: 20px; font-weight: 700; color: ${h1Color}; margin: 20px 0 10px 0; line-height: 1.4; text-align: center; }
-        h2 { font-size: 18px; font-weight: 700; color: ${darkMode ? '#e0e0e0' : '#222'}; margin: 18px 0 10px 0; line-height: 1.4; text-align: center; }
-        h3 { font-size: 17px; font-weight: 700; color: ${darkMode ? '#d0d0d0' : '#333'}; margin: 16px 0 8px 0; line-height: 1.4; text-align: center; }
-        h4 { font-size: 16px; font-weight: 600; color: ${darkMode ? '#c0c0c0' : '#444'}; margin: 14px 0 6px 0; line-height: 1.4; }
-        h5 { font-size: 15px; font-weight: 600; color: ${darkMode ? '#aaa' : '#555'}; margin: 12px 0 6px 0; line-height: 1.4; }
-        h6 { font-size: 14px; font-weight: 600; color: ${darkMode ? '#999' : '#666'}; margin: 10px 0 4px 0; line-height: 1.4; font-style: italic; }
+        h1 { font-size: 20px; font-weight: 700; color: ${h1Color} !important; margin: 20px 0 10px 0; line-height: 1.4; text-align: center; }
+        h2 { font-size: 18px; font-weight: 700; color: ${darkMode ? '#e0e0e0' : '#222'} !important; margin: 18px 0 10px 0; line-height: 1.4; text-align: center; }
+        h3 { font-size: 17px; font-weight: 700; color: ${darkMode ? '#d0d0d0' : '#333'} !important; margin: 16px 0 8px 0; line-height: 1.4; text-align: center; }
+        h4 { font-size: 16px; font-weight: 600; color: ${darkMode ? '#c0c0c0' : '#444'} !important; margin: 14px 0 6px 0; line-height: 1.4; }
+        h5 { font-size: 15px; font-weight: 600; color: ${darkMode ? '#aaa' : '#555'} !important; margin: 12px 0 6px 0; line-height: 1.4; }
+        h6 { font-size: 14px; font-weight: 600; color: ${darkMode ? '#999' : '#666'} !important; margin: 10px 0 4px 0; line-height: 1.4; font-style: italic; }
         blockquote {
           margin: 16px 0; padding: 12px 16px;
           border-left: 4px solid ${bqBorder};
-          background-color: ${bqBg};
-          color: ${bqColor};
+          background-color: ${bqBg} !important;
+          color: ${bqColor} !important;
           font-style: italic;
           border-radius: 0 8px 8px 0;
         }
@@ -181,7 +207,6 @@ const ReaderFlatListWebView = ({path, title, language, localPageDir, knownTotalP
   const pageCache = useRef<Map<number, string>>(new Map());
   const prefetching = useRef<Set<number>>(new Set());
   const [currentPage, setCurrentPage] = useState(0);
-  const [goToPage, setGoToPage] = useState(0);
   const [isPageRestored, setIsPageRestored] = useState(false);
   const [isFileLoading, setIsFileLoading] = useState(true);
   const [showGuide, setShowGuide] = useState(false);
@@ -208,6 +233,33 @@ const ReaderFlatListWebView = ({path, title, language, localPageDir, knownTotalP
   const fontId = fontFamilyId ?? DEFAULT_FONT_FAMILY_ID;
   const fonts = getFontList(language);
   const currentFont = fonts.find(f => f.id === fontId) ?? fonts[0];
+
+  const applyTheme = useCallback((theme: typeof READING_THEMES[number]) => {
+    setDarkMode(theme.dark);
+    setFontSizeVal(theme.fontSize);
+    setBrightnessState(theme.brightness);
+    Brightness?.setAppBrightness(theme.brightness).catch(() => {});
+  }, [setDarkMode, setFontSizeVal]);
+
+  // Hardware brightness (0.05–1.0)
+  const [brightness, setBrightnessState] = useState(0.5);
+
+  useEffect(() => {
+    Brightness?.getAppBrightness()
+      .then(level => { if (level > 0) setBrightnessState(level); })
+      .catch(() => {});
+  }, []);
+
+  // Combined eye care: one value (0.1–1.0) controls both brightness + warmth
+  // dim overlay: fully transparent at 1.0, dark at 0.1
+  const dimOpacity   = (1 - brightness) * 0.85;
+  // warm overlay: no tint at 1.0, strong amber at 0.1
+  const warmOpacity  = (1 - brightness) * 0.38;
+
+  const handleBrightnessChange = useCallback((val: number) => {
+    setBrightnessState(val);
+    Brightness?.setAppBrightness(val).catch(() => {});
+  }, []);
 
   // useRef (not createRef) — createRef makes a new object every render,
   // breaking the modal open/close ref entirely.
@@ -296,13 +348,21 @@ const ReaderFlatListWebView = ({path, title, language, localPageDir, knownTotalP
   }));
   // ──────────────────────────────────────────────────────────────────────
 
-  // ── Status bar: themed color, always visible ──────────────────────────
-  // Android: setBackgroundColor + setBarStyle update imperatively when theme changes.
-  // JSX <StatusBar> reinforces the same on every render.
+  // ── Status bar: re-apply on focus AND on theme change ────────────────
+  // useFocusEffect re-runs whenever this screen gains focus (e.g. returning
+  // from the options modal or page-jump input), preventing other screens
+  // from leaving a white status bar behind.
+  const applyStatusBar = useCallback(() => {
+    StatusBar.setHidden(false);
+    StatusBar.setBackgroundColor('#000000', false);
+    StatusBar.setBarStyle('light-content', false);
+  }, []);
+
+  useFocusEffect(applyStatusBar);
+
   useEffect(() => {
-    StatusBar.setBackgroundColor(enabled ? '#121212' : '#fcf7ea', true);
-    StatusBar.setBarStyle(enabled ? 'light-content' : 'dark-content', true);
-  }, [enabled]);
+    applyStatusBar();
+  }, [applyStatusBar]);
 
   // ── Paint the React Navigation screen card to match the theme ────────────
   // The navigator's card/container sits behind our component; if it stays white
@@ -501,7 +561,7 @@ const ReaderFlatListWebView = ({path, title, language, localPageDir, knownTotalP
       // including the rounded display corners — so no white bleeds through.
       <View style={[StyleSheet.absoluteFill, { backgroundColor: themeBg }]}>
         <SafeAreaView edges={['bottom', 'left', 'right']} style={styles.fullFlex}>
-          <StatusBar backgroundColor={themeBg} barStyle={enabled ? 'light-content' : 'dark-content'} />
+          <StatusBar backgroundColor="#000000" barStyle="light-content" />
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={GradientColor[2]} />
             <Text style={[styles.loadingText, { color: enabled ? '#aaa' : '#888' }]}>
@@ -518,7 +578,7 @@ const ReaderFlatListWebView = ({path, title, language, localPageDir, knownTotalP
     // SafeAreaView inside handles bottom/side insets only.
     <View style={[StyleSheet.absoluteFill, { backgroundColor: themeBg }]}>
       <SafeAreaView edges={['bottom', 'left', 'right']} style={styles.fullFlex}>
-      <StatusBar backgroundColor={themeBg} barStyle={enabled ? 'light-content' : 'dark-content'} />
+      <StatusBar backgroundColor="#000000" barStyle="light-content" />
       <GestureHandlerRootView style={[styles.gestureRoot, { backgroundColor: themeBg }]}>
         <BookPlayerView
           title={title}
@@ -548,6 +608,14 @@ const ReaderFlatListWebView = ({path, title, language, localPageDir, knownTotalP
           />
         </BookPlayerView>
 
+        {/* Eye care overlays — dim + warm tint, both driven by one brightness value */}
+        {dimOpacity > 0.02 && (
+          <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#000', opacity: dimOpacity, zIndex: 10 }]} />
+        )}
+        {warmOpacity > 0.02 && (
+          <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#FF8C00', opacity: warmOpacity, zIndex: 11 }]} />
+        )}
+
         {/* Draggable floating settings button — drag anywhere, tap to open options */}
         <GestureDetector gesture={dragGesture}>
           <Animated.View
@@ -566,246 +634,25 @@ const ReaderFlatListWebView = ({path, title, language, localPageDir, knownTotalP
           onClose={() => setShowGuide(false)}
         />
 
-        {/* closeOnBackdropPress=false: prevent accidental close on backdrop tap */}
-        <EsModel ref={htmlModelRef} closeOnBackdropPress={false}>
-          <FlexContainer noneBasicStyle fullWidth fullFlex>
-            <View style={{ height: isLandscapeNow ? '3%' : '30%', opacity: 0 }} />
-            {/* Pressable wrapper swallows taps so they don't reach the backdrop */}
-            <Pressable
-              onPress={() => {}}
-              style={[
-                modalStyle.container,
-                { maxHeight: winHeight * 0.97 },
-              ]}
-            >
-              <ScrollView
-                bounces={false}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                contentContainerStyle={isLandscapeNow ? styles.modalPadLandscape : styles.modalPadPortrait}
-              >
-                {/* Header row: title + close button */}
-                <FlexRowContainer noneBasicStyle style={styles.modalHeader}>
-                  <Text style={modalStyle.title}>Page Options</Text>
-                  <TouchableOpacity onPress={() => htmlModelRef.current?.close()} style={styles.closeBtn}>
-                    <Text style={styles.closeBtnText}>✕</Text>
-                  </TouchableOpacity>
-                </FlexRowContainer>
-
-                {isLandscapeNow ? (
-                  /* ── LANDSCAPE: ultra-compact single-screen layout ── */
-                  <>
-                    {/* Row 1: Search + Font size + Toggles — all in one line */}
-                    <View style={lsStyles.row}>
-                      {/* Page search */}
-                      <View style={lsStyles.searchBlock}>
-                        <TextInput
-                          onChangeText={(val) => setGoToPage(parseInt(String(val)))}
-                          keyboardType="number-pad"
-                          placeholder="Page No."
-                          placeholderTextColor="#aaa"
-                          style={lsStyles.searchInput}
-                        />
-                        <TouchableOpacity
-                          onPress={() => {
-                            if (goToPage >= 1 && goToPage <= pageCount) setCurrentPage(goToPage - 1);
-                            htmlModelRef.current?.close();
-                          }}
-                          style={lsStyles.searchBtn}>
-                          <Icon icon={IconKey.search} size={IconsSize.xs} className={{color: '#fff'}} />
-                        </TouchableOpacity>
-                      </View>
-
-                      <View style={lsStyles.dividerV} />
-
-                      {/* Font size */}
-                      <View style={lsStyles.fontSizeBlock}>
-                        <Text style={lsStyles.fontSizeLabelSm}>A</Text>
-                        <TouchableOpacity
-                          style={[lsStyles.fsBtn, fontSize <= MIN_FONT_SIZE && lsStyles.fsBtnDisabled]}
-                          onPress={() => setFontSizeVal((f) => Math.max((f ?? DEFAULT_FONT_SIZE) - 1, MIN_FONT_SIZE))}
-                          disabled={fontSize <= MIN_FONT_SIZE}>
-                          <Text style={lsStyles.fsBtnText}>−</Text>
-                        </TouchableOpacity>
-                        <Text style={lsStyles.fsValue}>{fontSize}</Text>
-                        <TouchableOpacity
-                          style={[lsStyles.fsBtn, fontSize >= MAX_FONT_SIZE && lsStyles.fsBtnDisabled]}
-                          onPress={() => setFontSizeVal((f) => Math.min((f ?? DEFAULT_FONT_SIZE) + 1, MAX_FONT_SIZE))}
-                          disabled={fontSize >= MAX_FONT_SIZE}>
-                          <Text style={lsStyles.fsBtnText}>+</Text>
-                        </TouchableOpacity>
-                        <Text style={lsStyles.fontSizeLabelLg}>A</Text>
-                      </View>
-
-                      <View style={lsStyles.dividerV} />
-
-                      {/* Toggles */}
-                      <View style={lsStyles.togglesBlock}>
-                        <View style={lsStyles.toggleRow}>
-                          <Text style={lsStyles.toggleLabel}>Dark</Text>
-                          <Switch value={enabled} onValueChange={(v) => setDarkMode(v)}
-                            trackColor={{ false: '#ccc', true: GradientColor[2] }}
-                            thumbColor={enabled ? '#fff' : '#f4f3f4'}
-                            style={lsStyles.switch} />
-                        </View>
-                        <View style={lsStyles.toggleRow}>
-                          <Text style={lsStyles.toggleLabel}>Landscape</Text>
-                          <Switch value={landscape} onValueChange={(v) => setIsLandscape(v)}
-                            trackColor={{ false: '#ccc', true: GradientColor[2] }}
-                            thumbColor={landscape ? '#fff' : '#f4f3f4'}
-                            style={lsStyles.switch} />
-                        </View>
-                      </View>
-                    </View>
-
-                    {/* Row 2: Font picker */}
-                    <View style={lsStyles.fontRow}>
-                      <Text style={lsStyles.fontLabel}>Font</Text>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={lsStyles.fontScroll}>
-                        {fonts.map((f) => {
-                          const selected = f.id === fontId;
-                          return (
-                            <TouchableOpacity
-                              key={f.id}
-                              onPress={() => setFontFamilyId(f.id)}
-                              style={[lsStyles.fontBtn, selected && lsStyles.fontBtnSelected]}
-                              activeOpacity={0.75}
-                            >
-                              <Text style={[lsStyles.fontBtnText, f.nativeFont ? { fontFamily: f.nativeFont } : {}, selected && lsStyles.fontBtnTextSelected]}>
-                                {f.preview}
-                              </Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </ScrollView>
-                    </View>
-                  </>
-                ) : (
-                  /* ── PORTRAIT: single column ──────────────────────── */
-                  <>
-                    <FlexRowContainer noneBasicStyle style={styles.rowSpaceBetween}>
-                      <FlexRowContainer noneBasicStyle centerAlign>
-                        <Icon icon={IconKey.setting} size={IconsSize.normal} className={{color: GradientColor[2], marginRight: 10}} />
-                        <Text style={styles.modalTextPrimary}>Dark Mode</Text>
-                      </FlexRowContainer>
-                      <Switch value={enabled} onValueChange={(v) => setDarkMode(v)}
-                        trackColor={{ false: '#ccc', true: GradientColor[2] }}
-                        thumbColor={enabled ? '#fff' : '#f4f3f4'} />
-                    </FlexRowContainer>
-                    <LineBreak />
-
-                    <FlexRowContainer noneBasicStyle style={styles.rowSpaceBetween}>
-                      <Text style={[styles.fontSizeLabel, {fontSize: 13}]}>A</Text>
-                      <FlexRowContainer noneBasicStyle centerAlign style={styles.volumeBarRow}>
-                        <TouchableOpacity
-                          style={[styles.volumeBtn, fontSize <= MIN_FONT_SIZE && styles.volumeBtnDisabled]}
-                          onPress={() => setFontSizeVal((f) => Math.max((f ?? DEFAULT_FONT_SIZE) - 1, MIN_FONT_SIZE))}
-                          disabled={fontSize <= MIN_FONT_SIZE}>
-                          <Text style={styles.volumeBtnText}>−</Text>
-                        </TouchableOpacity>
-                        <View style={styles.volumeDotsRow}>
-                          {fontSizeDots}
-                        </View>
-                        <TouchableOpacity
-                          style={[styles.volumeBtn, fontSize >= MAX_FONT_SIZE && styles.volumeBtnDisabled]}
-                          onPress={() => setFontSizeVal((f) => Math.min((f ?? DEFAULT_FONT_SIZE) + 1, MAX_FONT_SIZE))}
-                          disabled={fontSize >= MAX_FONT_SIZE}>
-                          <Text style={styles.volumeBtnText}>+</Text>
-                        </TouchableOpacity>
-                      </FlexRowContainer>
-                      <Text style={[styles.fontSizeLabel, {fontSize: 20}]}>A</Text>
-                    </FlexRowContainer>
-                    <LineBreak />
-
-                    {/* Font picker */}
-                    <View style={styles.fontPickerSection}>
-                      <Text style={styles.fontPickerLabel}>Font</Text>
-                      <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.fontPickerRow}
-                      >
-                        {fonts.map((f) => {
-                          const selected = f.id === fontId;
-                          return (
-                            <TouchableOpacity
-                              key={f.id}
-                              onPress={() => setFontFamilyId(f.id)}
-                              style={[
-                                styles.fontBtn,
-                                selected && styles.fontBtnSelected,
-                              ]}
-                              activeOpacity={0.75}
-                            >
-                              <Text
-                                style={[
-                                  styles.fontBtnPreview,
-                                  f.nativeFont ? { fontFamily: f.nativeFont } : {},
-                                  selected && styles.fontBtnPreviewSelected,
-                                ]}
-                              >
-                                {f.preview}
-                              </Text>
-                              <Text
-                                style={[
-                                  styles.fontBtnLabel,
-                                  selected && styles.fontBtnLabelSelected,
-                                ]}
-                                numberOfLines={1}
-                              >
-                                {f.label}
-                              </Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </ScrollView>
-                    </View>
-                    <LineBreak />
-
-                    <FlexRowContainer noneBasicStyle style={styles.rowSpaceBetween}>
-                      <Icon icon={IconKey.book} size={IconsSize.lg} className={{color: GradientColor[2]}} />
-                      <FlexRowContainer noneBasicStyle centerAlign>
-                        <TextInput
-                          onChangeText={(val) => setGoToPage(parseInt(String(val)))}
-                          keyboardType="number-pad"
-                          placeholder="Page Number"
-                          style={styles.goToInput}
-                        />
-                        <TouchableOpacity
-                          onPress={() => {
-                            if (goToPage >= 1 && goToPage <= pageCount) setCurrentPage(goToPage - 1);
-                            htmlModelRef.current?.close();
-                          }}
-                          style={styles.goToButton}>
-                          <Icon icon={IconKey.search} size={15} className={{color: "white"}} />
-                        </TouchableOpacity>
-                      </FlexRowContainer>
-                    </FlexRowContainer>
-                    <LineBreak />
-
-                    <FlexRowContainer isTouchable onPress={() => navigation.navigate(MainNav.HOME as never)} noneBasicStyle style={styles.rowSpaceBetween}>
-                      <Icon icon={IconKey.home} size={IconsSize.lg} className={{color: GradientColor[2], marginRight: 10}} />
-                      <FlexRowContainer noneBasicStyle fullFlex>
-                        <Text style={styles.modalTextPrimary}>Back to Home</Text>
-                      </FlexRowContainer>
-                    </FlexRowContainer>
-                    <LineBreak />
-
-                    <FlexRowContainer noneBasicStyle style={styles.rowSpaceBetween}>
-                      <FlexRowContainer noneBasicStyle centerAlign>
-                        <Icon icon={IconKey.setting} size={IconsSize.normal} className={{color: GradientColor[2], marginRight: 10}} />
-                        <Text style={styles.modalTextPrimary}>Landscape Mode</Text>
-                      </FlexRowContainer>
-                      <Switch value={landscape} onValueChange={(v) => setIsLandscape(v)}
-                        trackColor={{ false: '#ccc', true: GradientColor[2] }}
-                        thumbColor={landscape ? '#fff' : '#f4f3f4'} />
-                    </FlexRowContainer>
-                  </>
-                )}
-              </ScrollView>
-            </Pressable>
-          </FlexContainer>
-        </EsModel>
+        <PageOptionsModal
+          modalRef={htmlModelRef}
+          winHeight={winHeight}
+          navigation={navigation}
+          applyTheme={applyTheme}
+          enabled={enabled}
+          setDarkMode={setDarkMode}
+          landscape={landscape}
+          setIsLandscape={setIsLandscape}
+          brightness={brightness}
+          handleBrightnessChange={handleBrightnessChange}
+          fontSize={fontSize}
+          setFontSizeVal={setFontSizeVal}
+          fonts={fonts}
+          fontId={fontId}
+          setFontFamilyId={setFontFamilyId}
+          pageCount={pageCount}
+          setCurrentPage={setCurrentPage}
+        />
       </GestureHandlerRootView>
       </SafeAreaView>
     </View>
@@ -908,6 +755,23 @@ const lsStyles = StyleSheet.create({
   fontBtnSelected: { backgroundColor: GradientColor[2] + '18', borderColor: GradientColor[2] },
   fontBtnText: { fontSize: 13, color: '#555' },
   fontBtnTextSelected: { color: GradientColor[2], fontWeight: '700' },
+  // Brightness (landscape)
+  brightnessRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    gap: 6,
+  },
+  brightnessDotsRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+  },
+  brightnessIcon: { fontSize: 13 },
 });
 
 const modalStyle = StyleSheet.create({
@@ -956,9 +820,59 @@ const styles = StyleSheet.create({
   // Avoids overflow caused by SafeAreaView insets vs fixed winWidth/winHeight.
   // Also adapts on orientation change without needing useWindowDimensions.
   webview: { flex: 1 },
-  modalPadPortrait:  { padding: 20, paddingBottom: 28 },
+  modalPadPortrait:  { padding: 12, paddingBottom: 16 },
   modalPadLandscape: { padding: 12, paddingBottom: 16 },
-  modalHeader: { justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  dragHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#ddd', alignSelf: 'center', marginBottom: 6 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  modalTitle: { fontSize: 17, fontWeight: '700', color: '#222' },
+
+  // Theme scroll
+  themeScrollView: { marginBottom: 2 },
+  themeScrollContent: { gap: 8, paddingHorizontal: 2, alignItems: 'center' },
+  themeMockLine: { height: 3, borderRadius: 2, marginBottom: 3 },
+  themeActiveDot: { width: 6, height: 6, borderRadius: 3, marginTop: 3 },
+
+  // Flat option rows
+  optRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 36 },
+  optLabel: { fontSize: 15, fontWeight: '500', color: '#333' },
+  optDivider: { height: 1, backgroundColor: '#f0f0f0' },
+
+  // Font size counter
+  counterRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  counterBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: GradientColor[2], alignItems: 'center', justifyContent: 'center' },
+  counterBtnDisabled: { backgroundColor: '#ddd' },
+  counterBtnText: { color: '#fff', fontSize: 18, fontWeight: '700', lineHeight: 20 },
+  counterValue: { fontSize: 17, fontWeight: '700', color: '#333', minWidth: 26, textAlign: 'center' },
+
+  // Font chips
+  fontChipScroll: { marginVertical: 2 },
+  fontChipRow: { gap: 8, alignItems: 'center', paddingHorizontal: 2 },
+  fontChip: { alignItems: 'center', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10, backgroundColor: '#efefef', gap: 2, minWidth: 58 },
+  fontChipSelected: { backgroundColor: GradientColor[2] },
+  fontChipPreview: { fontSize: 16, color: '#444' },
+  fontChipLabel: { fontSize: 9, color: '#666', fontWeight: '600', textAlign: 'center' },
+
+  // Brightness
+  brightnessPercent: { fontSize: 13, fontWeight: '600', color: '#aaa' },
+  brightnessDotHit: { padding: 5 },
+  brightnessDot: { width: 8, height: 8, borderRadius: 4 },
+  brightnessDotFilled: { backgroundColor: GradientColor[2] },
+  brightnessDotEmpty: { backgroundColor: '#ddd' },
+
+  // Nav row
+  navRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
+  themeCard: {
+    width: 72,
+    height: 80,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    padding: 6,
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  themeCardActive: { borderColor: GradientColor[1] },
+  themeCardLabel: { fontSize: 10, fontWeight: '700', textAlign: 'center', marginTop: 3 },
   closeBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#eee', justifyContent: 'center', alignItems: 'center' },
   closeBtnText: { fontSize: 16, color: '#555', fontWeight: '700', lineHeight: 18 },
   // 2-column grid for landscape
@@ -1033,6 +947,65 @@ const styles = StyleSheet.create({
   fontBtnLabelSelected: {
     color: GradientColor[2],
   },
+
+  // Toggle cards (Dark + Landscape side by side)
+  toggleCardRow: { flexDirection: 'row', gap: 10, marginBottom: 4 },
+  toggleCard: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#e0e0e0',
+    backgroundColor: '#fafafa',
+    gap: 4,
+  },
+  toggleCardActive: { borderColor: GradientColor[2], backgroundColor: GradientColor[2] + '12' },
+  toggleCardIcon: { fontSize: 18 },
+  toggleCardLabel: { fontSize: 12, fontWeight: '600', color: '#555' },
+  toggleCardLabelActive: { color: GradientColor[2] },
+  toggleCardSwitch: { transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] },
+
+  // Bottom action row
+  bottomActionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
+  goToPageCompact: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  goToInputCompact: {
+    flex: 1,
+    height: 40,
+    backgroundColor: '#fafafa',
+    borderWidth: 1,
+    borderColor: GradientColor[2],
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    fontSize: 14,
+    color: '#333',
+  },
+  homeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: GradientColor[2],
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  homeBtnText: { color: '#fff', fontWeight: '600', fontSize: 13 },
+
+  // Brightness
+  brightnessRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 4,
+  },
+  brightnessDotsRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 6,
+  },
+  brightnessIcon: { fontSize: 16, marginHorizontal: 6 },
 });
 
 export default ReaderFlatListWebView;
