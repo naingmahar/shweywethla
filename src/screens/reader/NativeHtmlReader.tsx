@@ -47,6 +47,12 @@ const SYSTEM_FONTS = [...defaultSystemFonts, 'Pyidaungsu', 'Myanmar3'];
 const THEME_STORAGE_KEY = 'native_reader_theme';
 const BRIGHTNESS_STORAGE_KEY = 'native_reader_brightness';
 
+function getLineHeight(fontSize: number, language?: string): number {
+  const lang = language?.toLowerCase() ?? '';
+  const isMyanmar = lang.includes('myanmar') || lang.includes('burmese') || lang === 'mm' || lang === 'my';
+  return isMyanmar ? fontSize * 2.4 : fontSize * 1.7;
+}
+
 // ── Props ──────────────────────────────────────────────────────────────────────
 interface NativeHtmlReaderProps {
   path: string;
@@ -241,11 +247,12 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
   const bg = theme.bg;
   const textColor = theme.color;
   const isDarkTheme = theme.dark;
-  const pageContentHeight = height - 48 - 36;
+  const pageContentHeight = height - 48 - 44; // 48 header + 44 footer
+  const lineHeight = getLineHeight(fontSize, language);
 
   // ── tagsStyles for HTML fragments (no html/head/body wrapper) ────────────
   const tagsStyles = {
-    p:          { color: textColor, fontSize, lineHeight: fontSize * 1.7, marginBottom: 10, fontFamily },
+    p:          { color: textColor, fontSize, lineHeight: lineHeight, marginBottom: 10, fontFamily },
     h1:         { color: textColor, fontSize: fontSize + 8, fontWeight: '700' as const, marginBottom: 8, fontFamily },
     h2:         { color: textColor, fontSize: fontSize + 6, fontWeight: '700' as const, marginBottom: 8, fontFamily },
     h3:         { color: textColor, fontSize: fontSize + 4, fontWeight: '700' as const, marginBottom: 6, fontFamily },
@@ -261,7 +268,7 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
     i:          { color: textColor, fontStyle: 'italic' as const, fontFamily },
     span:       { color: textColor, fontFamily },
     a:          { color: '#7c3aed' },
-    li:         { color: textColor, fontSize, lineHeight: fontSize * 1.7, fontFamily },
+    li:         { color: textColor, fontSize, lineHeight: lineHeight, fontFamily },
     td:         { color: textColor, padding: 6, borderWidth: 1, borderColor: isDarkTheme ? '#444' : '#ddd', fontFamily },
     th:         { color: textColor, padding: 6, fontWeight: '700' as const, borderWidth: 1, borderColor: isDarkTheme ? '#444' : '#ddd', backgroundColor: isDarkTheme ? '#222' : '#f0f0f0', fontFamily },
     div:        { color: textColor, fontFamily },
@@ -329,7 +336,7 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
               contentWidth={width - 40}
               source={{ html: pageContent }}
               tagsStyles={tagsStyles as any}
-              baseStyle={{ color: textColor, fontSize, lineHeight: fontSize * 1.7, fontFamily }}
+              baseStyle={{ color: textColor, fontSize, lineHeight: lineHeight, fontFamily }}
               systemFonts={SYSTEM_FONTS}
               enableExperimentalBRCollapsing
               enableExperimentalGhostLinesPrevention
@@ -389,7 +396,7 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
             contentWidth={width - 40}
             source={{ html: item }}
             tagsStyles={tagsStyles as any}
-            baseStyle={{ color: textColor, fontSize, lineHeight: fontSize * 1.7, fontFamily }}
+            baseStyle={{ color: textColor, fontSize, lineHeight: lineHeight, fontFamily }}
             systemFonts={SYSTEM_FONTS}
             enableExperimentalBRCollapsing
             enableExperimentalGhostLinesPrevention
