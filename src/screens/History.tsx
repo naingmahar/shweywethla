@@ -46,9 +46,9 @@ export const History: React.FC<HistoryScreenProps> = ({ navigation }) => {
 
   const filteredBooks = downloadedBooks.filter(item => {
     if (activeTab === 'Audio') return hasAudio(item);
-    if (activeTab === 'Notes') return item.book_type === 'short_note';
-    // Books tab: all non-short_note books (including those with audio)
-    return item.book_type !== 'short_note';
+    if (activeTab === 'Notes')
+      return item.downloadSource === 'Notes' || item.book_type === 'short_note';
+    return item.downloadSource !== 'Notes' && item.book_type !== 'short_note';
   });
 
   const handleDelete = (id: string) => {

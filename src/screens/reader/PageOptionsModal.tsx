@@ -1,12 +1,12 @@
 import React from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  Switch, TextInput, Pressable, useWindowDimensions,
+  Switch, TextInput, useWindowDimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { GradientColor } from '../../res/color';
 import { Icon, IconKey, IconsSize } from '../../componet/atoms/icons';
 import { EsModel } from '../../componet/atoms/container/ModalContainer';
-import { FlexContainer } from '../../componet/atoms/container/FlexContainer';
 import { IEsModelRefProps } from '../../componet/atoms/Types/IModal';
 import { MIN_FONT_SIZE, MAX_FONT_SIZE, DEFAULT_FONT_SIZE } from '../../features/jotai/model/fontSize';
 import { MainNav } from '../../nav/main.nav';
@@ -22,23 +22,21 @@ export type ThemeOption = {
 };
 
 export const READING_THEMES: ThemeOption[] = [
-  // Light themes — white bg, dark text
-  { key: 'soft',    label: 'Soft',     dark: false, brightness: 0.5,  fontSize: 18, bg: '#ffffff', color: '#1a1a1a' },
-  { key: 'calm',    label: 'Calm',     dark: false, brightness: 0.75, fontSize: 18, bg: '#ffffff', color: '#1a1a1a' },
-  { key: 'day',     label: 'Day',      dark: false, brightness: 1.0,  fontSize: 18, bg: '#ffffff', color: '#1a1a1a' },
-  // Eye care themes — warm tones, reduce blue light
-  { key: 'sepia',   label: 'Sepia',    dark: false, brightness: 0.75, fontSize: 18, bg: '#f2e0c0', color: '#5c3d1a' },
-  { key: 'eyecare', label: 'Eye Care', dark: false, brightness: 0.6,  fontSize: 18, bg: '#e8d5a0', color: '#4a3010' },
-  // Dark themes — black bg, white text
-  { key: 'dusk',    label: 'Dusk',     dark: true,  brightness: 0.5,  fontSize: 18, bg: '#000000', color: '#ffffff' },
-  { key: 'dark',    label: 'Dark',     dark: true,  brightness: 0.75, fontSize: 18, bg: '#000000', color: '#ffffff' },
-  { key: 'midnight',label: 'Midnight', dark: true,  brightness: 1.0,  fontSize: 18, bg: '#000000', color: '#ffffff' },
+  // Light themes
+  { key: 'paper',    label: 'Paper',    dark: false, brightness: 0.85, fontSize: 18, bg: '#FAF7F2', color: '#2C2416' },
+  { key: 'day',      label: 'Day',      dark: false, brightness: 1.0,  fontSize: 18, bg: '#FFFFFF', color: '#1A1A1A' },
+  { key: 'mint',     label: 'Mint',     dark: false, brightness: 0.9,  fontSize: 18, bg: '#C8E6D8', color: '#1A3028' },
+  { key: 'stone',    label: 'Stone',    dark: false, brightness: 0.9,  fontSize: 18, bg: '#E8D8C0', color: '#3D2A14' },
+  // Dark themes
+  { key: 'slate',    label: 'Slate',    dark: true,  brightness: 0.7,  fontSize: 18, bg: '#1E2430', color: '#E8EDF5' },
+  { key: 'forest',   label: 'Forest',   dark: true,  brightness: 0.6,  fontSize: 18, bg: '#1A2420', color: '#C8E6D8' },
+  { key: 'midnight', label: 'Midnight', dark: true,  brightness: 0.5,  fontSize: 18, bg: '#121212', color: '#E8E0D0' },
+  { key: 'carbon',   label: 'Carbon',   dark: true,  brightness: 0.8,  fontSize: 18, bg: '#1C1C1E', color: '#F5F5F5' },
 ];
 
 const THEME_ICONS: Record<string, string> = {
-  soft: '⛅', calm: '🌤', day: '☀️',
-  sepia: '📜', eyecare: '🍃',
-  dusk: '🌆', dark: '🌑', midnight: '🌙',
+  paper: '📄', day: '☀️', mint: '🌿', stone: '🪨',
+  slate: '🌊', forest: '🌲', midnight: '🌙', carbon: '⚫',
 };
 
 // ── Props ─────────────────────────────────────────────────────────────────────
@@ -53,6 +51,7 @@ export interface PageOptionsModalProps {
   fontSize: number; setFontSizeVal: (fn: (f: number | null) => number) => void;
   fonts: FontOption[]; fontId: string; setFontFamilyId: (id: string) => void;
   pageCount: number; setCurrentPage: (page: number) => void;
+  currentThemeKey: string;
 }
 
 // ── Shared atoms ──────────────────────────────────────────────────────────────
@@ -140,7 +139,7 @@ const PortraitLayout = (p: LayoutProps) => (
       <Text style={s.secLabel}>Theme</Text>
       <View style={s.wrapRow}>
         {READING_THEMES.map(t => (
-          <ThemeChip key={t.key} t={t} active={p.enabled === t.dark && Math.abs(p.brightness - t.brightness) < 0.05} onPress={() => p.applyTheme(t)} />
+          <ThemeChip key={t.key} t={t} active={t.key === p.currentThemeKey} onPress={() => p.applyTheme(t)} />
         ))}
       </View>
     </View>
@@ -209,7 +208,7 @@ const LandscapeLayout = (p: LayoutProps) => (
         <Text style={s.secLabel}>Theme</Text>
         <View style={s.wrapRow}>
           {READING_THEMES.map(t => (
-            <ThemeChip key={t.key} t={t} active={p.enabled === t.dark && Math.abs(p.brightness - t.brightness) < 0.05} onPress={() => p.applyTheme(t)} />
+            <ThemeChip key={t.key} t={t} active={t.key === p.currentThemeKey} onPress={() => p.applyTheme(t)} />
           ))}
         </View>
       </View>
@@ -274,12 +273,9 @@ export const PageOptionsModal: React.FC<PageOptionsModalProps> = (p) => {
 
   return (
     <EsModel ref={p.modalRef} closeOnBackdropPress={false}>
-      <FlexContainer noneBasicStyle fullWidth fullFlex>
-        <View style={{ height: '0%', opacity: 0 }} />
-        <Pressable onPress={() => {}} style={[s.container, { flex: 1, height: p.winHeight }]}>
-          {isLandscape ? <LandscapeLayout {...layoutProps} /> : <PortraitLayout {...layoutProps} />}
-        </Pressable>
-      </FlexContainer>
+      <SafeAreaView style={[s.container, { width: '100%', flex: 1 }]} edges={['top', 'bottom']}>
+        {isLandscape ? <LandscapeLayout {...layoutProps} /> : <PortraitLayout {...layoutProps} />}
+      </SafeAreaView>
     </EsModel>
   );
 };

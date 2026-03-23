@@ -62,6 +62,7 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
       await Promise.all([
         fetchCarousel(),
         fetchBooks(),
+        fetchNotes(),
         fetchCommingSoonBooks(),
         fetchCategories(),
         fetchKeywords(),

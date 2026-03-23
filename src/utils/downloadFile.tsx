@@ -173,12 +173,14 @@ export const downloadFile = async (book:IBook):Promise<IBookDownloaded|undefined
         }
       }
 
+      const fromTab = (book as any).fromTab as 'Books' | 'Notes' | undefined;
       let downloadedBook:IBookDownloaded = {
         ...book,
         localFilePath,
         downloadedAt: new Date().toISOString(),
         ...(localAudioPaths && localAudioPaths.length > 0 ? { localAudioPaths } : {}),
         ...(localPageDir ? { localPageDir, totalPages } : {}),
+        downloadSource: fromTab === 'Notes' ? 'Notes' : 'Books',
       };
       await addDownloadedBook(downloadedBook);
       await enforceStorageLimit();

@@ -27,4 +27,5 @@ export type IBookDownloaded = IBook & {
   localAudioPaths?: string[]
   localPageDir?: string   // path to bookId_pages/ subfolder (set after preprocessing)
   totalPages?: number     // total page count (set after preprocessing)
+  downloadSource?: 'Books' | 'Notes'
 }

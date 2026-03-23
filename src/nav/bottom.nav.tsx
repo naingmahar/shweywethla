@@ -8,7 +8,6 @@ import { Icon, IconKey, IconsSize } from '../componet/atoms/icons';
 import { Circle } from '../componet/atoms/Shape/Circle';
 import { Setting } from '../screens/Setting';
 import { Colors } from '../res/color';
-import { History } from '../screens/History';
 import { HelperPage } from '../screens/helper';
 import BookListScreen from '../screens/books';
 import { MainNav } from './main.nav';
@@ -16,6 +15,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import BookRoute from './book.nav';
 import NoteRoute from './note.nav';
 import Dashboard from '../screens/dashboard';
+import LitTalkScreen from '../screens/litTalk';
 
 const Tab = createBottomTabNavigator();
 
@@ -30,7 +30,8 @@ function MyTabBar({ state, descriptors, navigation }:any) {
             Books:IconKey.book,
             Notes:IconKey.document,
             History:IconKey.calendar,
-            Setting:IconKey.setting
+            Setting:IconKey.setting,
+            'Lit Talk':IconKey.play,
         }
 
         //@ts-ignore
@@ -120,7 +121,7 @@ export function BottomTabs() {
         <Tab.Screen name={MainNav.Books} component={BookRoute} />
         <Tab.Screen name={MainNav.Notes} component={NoteRoute} />
         {/* <Tab.Screen name="Helper" component={HelperPage} /> */}
-        <Tab.Screen name={MainNav.History} component={History} />
+        <Tab.Screen name={MainNav.LitTalk} component={LitTalkScreen} options={{ tabBarLabel: 'Lit Talk' }} />
         <Tab.Screen name="Setting" component={Setting} />
     </Tab.Navigator>
   );

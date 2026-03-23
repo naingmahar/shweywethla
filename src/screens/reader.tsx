@@ -12,8 +12,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type ReaderScreenProps = NativeStackScreenProps<RootStackParamList, MainNav.Reader>;
 
-type HtmlReaderMode = 'performance' | 'design';
-const HTML_MODE_KEY = 'html_reader_mode';
+export type HtmlReaderMode = 'performance' | 'design';
+export const HTML_MODE_KEY = 'html_reader_mode';
 
 export const Reader: React.FC<ReaderScreenProps> = ({ route, navigation }) => {
   const [path, setPath] = useState<string | null>(null);
@@ -21,6 +21,7 @@ export const Reader: React.FC<ReaderScreenProps> = ({ route, navigation }) => {
   const [totalPages, setTotalPages] = useState<number | undefined>(undefined);
   const [htmlMode, setHtmlMode] = useState<HtmlReaderMode | null>(null);
   const [modeLoaded, setModeLoaded] = useState(false);
+  const [htmlFallback, setHtmlFallback] = useState(false);
 
   const book = route.params;
   const bookType = route.params.premium_type;
@@ -40,21 +41,14 @@ export const Reader: React.FC<ReaderScreenProps> = ({ route, navigation }) => {
     return () => { isMounted = false; };
   }, []);
 
-  // Load saved html reader mode
+  // Load saved html reader mode (default: 'design')
   useEffect(() => {
     if (bookType !== 'html') { setModeLoaded(true); return; }
     AsyncStorage.getItem(HTML_MODE_KEY).then(saved => {
-      if (saved === 'performance' || saved === 'design') {
-        setHtmlMode(saved);
-      }
+      setHtmlMode(saved === 'performance' ? 'performance' : 'design');
       setModeLoaded(true);
     });
   }, [bookType]);
-
-  const chooseMode = (mode: HtmlReaderMode) => {
-    AsyncStorage.setItem(HTML_MODE_KEY, mode);
-    setHtmlMode(mode);
-  };
 
   // Non-html types — render directly
   if (bookType !== 'html') {
@@ -75,32 +69,6 @@ export const Reader: React.FC<ReaderScreenProps> = ({ route, navigation }) => {
     );
   }
 
-  // HTML type — show mode picker if no choice yet
-  if (htmlMode === null) {
-    return (
-      <SafeAreaView style={styles.picker}>
-        <Text style={styles.pickerTitle}>Choose Reader Mode</Text>
-        <Text style={styles.pickerSub}>You can change this later in Settings</Text>
-
-        <TouchableOpacity style={[styles.modeCard, styles.perfCard]} onPress={() => chooseMode('performance')} activeOpacity={0.85}>
-          <Text style={styles.modeIcon}>⚡</Text>
-          <Text style={styles.modeTitle}>Performance</Text>
-          <Text style={styles.modeDesc}>Native reader — fast scrolling, instant theme changes, smooth animations</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={[styles.modeCard, styles.designCard]} onPress={() => chooseMode('design')} activeOpacity={0.85}>
-          <Text style={styles.modeIcon}>🎨</Text>
-          <Text style={styles.modeTitle}>Design</Text>
-          <Text style={styles.modeDesc}>HTML reader — full layout with original formatting, tables, and rich styles</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.backBtnText}>← Go Back</Text>
-        </TouchableOpacity>
-      </SafeAreaView>
-    );
-  }
-
   // HTML type — render chosen reader
   if (path == null) {
     return (
@@ -111,7 +79,7 @@ export const Reader: React.FC<ReaderScreenProps> = ({ route, navigation }) => {
     );
   }
 
-  if (htmlMode === 'performance') {
+  if (htmlMode === 'performance' || htmlFallback) {
     return (
       <NativeHtmlReader
         path={path}
@@ -130,6 +98,7 @@ export const Reader: React.FC<ReaderScreenProps> = ({ route, navigation }) => {
       language={book.language}
       localPageDir={localPageDir}
       knownTotalPages={totalPages}
+      onError={() => setHtmlFallback(true)}
     />
   );
 };

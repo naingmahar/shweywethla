@@ -128,6 +128,11 @@ export const ADS = (props: IProps) => {
   };
 
   useEffect(() => {
+    if (__DEV__) {
+      handleTransitionToDownload();
+      return;
+    }
+
     const unsubscribeLoaded = rewarded.addAdEventListener(RewardedAdEventType.LOADED, () => {
       loadedRef.current = true;
       setLoaded(true);

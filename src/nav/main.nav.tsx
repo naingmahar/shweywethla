@@ -28,6 +28,7 @@ import TextReaderPage from '../screens/reader/textReader';
 import { PdfReader } from '../screens/reader/pdfReader';
 import { AudioPlayerScreen } from '../screens/reader/audioPlayer';
 import { AudioAlbumScreen } from '../screens/reader/audioAlbum';
+import { History } from '../screens/History';
 
 
 export enum MainNav  {
@@ -54,6 +55,7 @@ export enum MainNav  {
   BookList="BookList",
   AudioPlayer="AudioPlayer",
   AudioAlbum="AudioAlbum",
+  LitTalk="LitTalk",
 }
 
 export type RootStackParamList = {
@@ -61,7 +63,7 @@ export type RootStackParamList = {
   "Register":any,
   "Home":any,
   "Quizzes":any,
-  "ADS":IBook & { _adDestination?: 'AudioPlayer' },
+  "ADS":IBook & { _adDestination?: 'AudioPlayer'; _episodeList?: any[]; _episodeIndex?: number },
   "Privacy Policy":any,
   "Terms And Conditions":any,
   "Helper Program":any,
@@ -78,8 +80,9 @@ export type RootStackParamList = {
   "BookDetails":IBook & { fromTab?: 'Books' | 'Notes' },
   "History":any,
   "Dashboard":any,
-  "AudioPlayer":IBook,
+  "AudioPlayer":IBook & { _episodeList?: any[]; _episodeIndex?: number },
   "AudioAlbum":IBook,
+  "LitTalk":any,
 };
 
 
@@ -125,6 +128,7 @@ export default function AppRoute() {
         <Stack.Screen name={MainNav.deleteAccount} component={AccountDelete} options={{headerShown:false}}   />
         <Stack.Screen name={MainNav.AudioPlayer} component={AudioPlayerScreen} options={{headerShown:false}}   />
         <Stack.Screen name={MainNav.AudioAlbum} component={AudioAlbumScreen} options={{headerShown:false}}   />
+        <Stack.Screen name={MainNav.History} component={History} options={{headerShown:false}}   />
       </Stack.Navigator>
     </RecoilRoot>
   );

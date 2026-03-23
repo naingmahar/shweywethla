@@ -70,7 +70,7 @@ export const getCurrentStorageUsageGB = async (): Promise<number> => {
     const books: IBookDownloaded[] = JSON.parse(jsonValue);
     const sizes = await Promise.all(books.map(b => getFileSizeBytes(b.localFilePath)));
     const totalBytes = sizes.reduce((sum, s) => sum + s, 0);
-    return parseFloat((totalBytes / (1024 * 1024 * 1024)).toFixed(2));
+    return parseFloat((totalBytes / (1024 * 1024)).toFixed(1)); // returns MB
   } catch {
     return 0;
   }

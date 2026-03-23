@@ -1,7 +1,9 @@
 package com.shweywethla
 
+import android.graphics.Color
 import android.os.Bundle
 import android.view.WindowManager
+import androidx.core.view.WindowCompat
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
@@ -18,6 +20,9 @@ class MainActivity : ReactActivity() {
   override fun getMainComponentName(): String = "shweywethla"
 
   override fun onCreate(savedInstanceState: Bundle?) {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = Color.parseColor("#1C1C1C")
+        window.navigationBarColor = Color.parseColor("#1C1C1C")
         SplashScreen.show(this)
     super.onCreate(savedInstanceState)
     // Set the FLAG_SECURE to prevent screenshots and screen recordings

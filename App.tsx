@@ -101,10 +101,10 @@ function App(): React.JSX.Element {
 
   return (
     <SafeAreaView style={[{flex:1}]}>
-      <StatusBar
+      {/* <StatusBar
         barStyle={isDarkMode ? 'light-content' : 'dark-content'}
         backgroundColor={ isDarkMode ? "white" : "white" }
-      />
+      /> */}
       <PersistQueryClientProvider
         client={queryClient}
         persistOptions={{ persister: asyncStoragePersister }}

@@ -13,7 +13,6 @@ import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-g
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
 import { Icon, IconKey, IconsSize } from '../../componet/atoms/icons';
 import { PageOptionsModal, READING_THEMES, ThemeOption } from './PageOptionsModal';
-import { EsModel } from '../../componet/atoms/container/ModalContainer';
 import { IEsModelRefProps } from '../../componet/atoms/Types/IModal';
 import { darkModeAtom } from '../../features/jotai/model/darkMode';
 import { fontSizeAtom, MIN_FONT_SIZE, MAX_FONT_SIZE, DEFAULT_FONT_SIZE } from '../../features/jotai/model/fontSize';
@@ -244,6 +243,7 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
     setDarkMode(t.dark);
     handleBrightnessChange(t.brightness);
     AsyncStorage.setItem(THEME_STORAGE_KEY, t.key);
+    StatusBar.setBarStyle(t.dark ? 'light-content' : 'dark-content', true);
   };
 
   const handleBrightnessChange = (v: number) => {
@@ -341,7 +341,7 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
     return (
       <View style={[StyleSheet.absoluteFill, { backgroundColor: themeBg }]}>
         <SafeAreaView style={styles.fullFlex}>
-          <StatusBar backgroundColor={themeBg} barStyle={isDarkTheme ? 'light-content' : 'dark-content'} />
+          <StatusBar hidden={true} />
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={GradientColor[2]} />
             <Text style={[styles.loadingText, { color: textColor }]}>Loading book...</Text>
@@ -355,7 +355,7 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
     return (
       <View style={[StyleSheet.absoluteFill, { backgroundColor: themeBg }]}>
         <SafeAreaView style={styles.fullFlex}>
-          <StatusBar backgroundColor={themeBg} barStyle={isDarkTheme ? 'light-content' : 'dark-content'} />
+          <StatusBar hidden={true} />
           <View style={styles.loadingContainer}>
             <Text style={{ fontSize: 48, marginBottom: 16 }}>📖</Text>
             <Text style={{ fontSize: 16, fontWeight: '700', color: '#f44336', marginBottom: 8 }}>Unable to Open Book</Text>
@@ -375,8 +375,8 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
   if (isPerPageMode) {
     return (
       <View style={[StyleSheet.absoluteFill, { backgroundColor: bg }]}>
-        <SafeAreaView edges={['bottom', 'left', 'right']} style={styles.fullFlex}>
-          <StatusBar backgroundColor={bg} barStyle={isDarkTheme ? 'light-content' : 'dark-content'} />
+        <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={styles.fullFlex}>
+          <StatusBar hidden={true} />
           <GestureHandlerRootView style={[styles.fullFlex, { backgroundColor: bg }]}>
             <View style={[styles.header, { backgroundColor: bg, borderBottomColor: isDarkTheme ? '#333' : '#ddd' }]}>
               <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
@@ -411,6 +411,7 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
             </View>
 
             {dimOpacity > 0.02 && <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#000', opacity: dimOpacity, zIndex: 10 }]} />}
+            {insets.bottom > 0 && <View pointerEvents="none" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: insets.bottom, backgroundColor: bg, zIndex: 20 }} />}
             {warmOpacity > 0.02 && <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#FF8C00', opacity: warmOpacity, zIndex: 11 }]} />}
 
             <GestureDetector gesture={dragGesture}>
@@ -419,17 +420,25 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
               </Animated.View>
             </GestureDetector>
 
-            <EsModel ref={pageOptionsRef}>
-              <PageOptionsModal
-                modalRef={pageOptionsRef} winHeight={height} navigation={navigation}
-                applyTheme={applyTheme} enabled={isDark ?? false} setDarkMode={setDarkMode}
-                landscape={landscape ?? false} setIsLandscape={setIsLandscape}
-                brightness={brightness} handleBrightnessChange={handleBrightnessChange}
-                fontSize={fontSize} setFontSizeVal={setFontSizeVal}
-                fonts={fonts} fontId={fontId} setFontFamilyId={setFontFamilyId}
-                pageCount={pageCount} setCurrentPage={setCurrentPage}
-              />
-            </EsModel>
+            <PageOptionsModal
+              modalRef={pageOptionsRef}
+              winHeight={height}
+              navigation={navigation}
+              applyTheme={applyTheme}
+              enabled={isDark ?? false} setDarkMode={setDarkMode}
+              landscape={landscape ?? false}
+              setIsLandscape={setIsLandscape}
+              brightness={brightness}
+              handleBrightnessChange={handleBrightnessChange}
+              fontSize={fontSize}
+              setFontSizeVal={setFontSizeVal}
+              fonts={fonts}
+              fontId={fontId}
+              setFontFamilyId={setFontFamilyId}
+              pageCount={pageCount}
+              setCurrentPage={setCurrentPage}
+              currentThemeKey={theme.key}
+            />
           </GestureHandlerRootView>
         </SafeAreaView>
       </View>
@@ -457,8 +466,8 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
 
   return (
     <View style={[StyleSheet.absoluteFill, { backgroundColor: bg }]}>
-      <SafeAreaView edges={['bottom', 'left', 'right']} style={styles.fullFlex}>
-        <StatusBar backgroundColor={bg} barStyle={isDarkTheme ? 'light-content' : 'dark-content'} />
+      <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={styles.fullFlex}>
+        <StatusBar hidden={true} />
         <GestureHandlerRootView style={[styles.fullFlex, { backgroundColor: bg }]}>
           <View style={[styles.header, { backgroundColor: bg, borderBottomColor: isDarkTheme ? '#333' : '#ddd' }]}>
             <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
@@ -498,22 +507,20 @@ const NativeHtmlReader: React.FC<NativeHtmlReaderProps> = ({
             </Animated.View>
           </GestureDetector>
 
-          <EsModel ref={pageOptionsRef}>
-            <PageOptionsModal
-              modalRef={pageOptionsRef} winHeight={height} navigation={navigation}
-              applyTheme={applyTheme} enabled={isDark ?? false} setDarkMode={setDarkMode}
-              landscape={landscape ?? false} setIsLandscape={setIsLandscape}
-              brightness={brightness} handleBrightnessChange={handleBrightnessChange}
-              fontSize={fontSize} setFontSizeVal={setFontSizeVal}
-              fonts={fonts} fontId={fontId} setFontFamilyId={setFontFamilyId}
-              pageCount={pageCount}
-              setCurrentPage={page => {
-                const idx = page - 1;
-                setCurrentPage(idx);
-                flatListRef.current?.scrollToIndex({ index: idx, animated: true });
-              }}
-            />
-          </EsModel>
+          <PageOptionsModal
+            modalRef={pageOptionsRef} winHeight={height} navigation={navigation}
+            applyTheme={applyTheme} enabled={isDark ?? false} setDarkMode={setDarkMode}
+            landscape={landscape ?? false} setIsLandscape={setIsLandscape}
+            brightness={brightness} handleBrightnessChange={handleBrightnessChange}
+            fontSize={fontSize} setFontSizeVal={setFontSizeVal}
+            fonts={fonts} fontId={fontId} setFontFamilyId={setFontFamilyId}
+            pageCount={pageCount}
+            setCurrentPage={page => {
+              const idx = page - 1;
+              setCurrentPage(idx);
+              flatListRef.current?.scrollToIndex({ index: idx, animated: true });
+            }}
+          />
         </GestureHandlerRootView>
       </SafeAreaView>
     </View>

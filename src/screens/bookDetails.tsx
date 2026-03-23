@@ -1,8 +1,10 @@
 import React, { createRef, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Platform, Modal } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { HTML_MODE_KEY, HtmlReaderMode } from './reader';
 import LinearGradient from 'react-native-linear-gradient';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import firestore from '@react-native-firebase/firestore';
+import { getFirestore, collection, addDoc, doc, onSnapshot, runTransaction, serverTimestamp } from '@react-native-firebase/firestore';
 import { firebase, ref, get, set } from '@react-native-firebase/database';
 
 // Types
@@ -225,13 +227,30 @@ const BookDetailsScreen: React.FC<BookDetailsScreenProps> = ({ route, navigation
   const [name, setName] = useState<string>('');
   const [gender, setGender] = useState<'Male' | 'Female' | 'Other' | ''>('');
 
+  // Reader mode state (only for html books)
+  const [readerMode, setReaderMode] = useState<HtmlReaderMode | null>(null);
+  const [readerSettingsVisible, setReaderSettingsVisible] = useState(false);
+
+  useEffect(() => {
+    if (book.premium_type !== 'html') return;
+    AsyncStorage.getItem(HTML_MODE_KEY).then(saved => {
+      if (saved === 'performance' || saved === 'design') setReaderMode(saved);
+      else setReaderMode('design');
+    });
+  }, []);
+
+  const saveReaderMode = (mode: HtmlReaderMode) => {
+    setReaderMode(mode);
+    AsyncStorage.setItem(HTML_MODE_KEY, mode);
+  };
+
   // Rating state
   const [userRating, setUserRating] = useState(0);
   const [averageRating, setAverageRating] = useState(0);
   const [ratingCount, setRatingCount] = useState(0);
   const [savingRating, setSavingRating] = useState(false);
 
-  const db = firestore();
+  const db = getFirestore();
 
   const bannerRef = useRef<BannerAd>(null);
 
@@ -285,11 +304,11 @@ const BookDetailsScreen: React.FC<BookDetailsScreenProps> = ({ route, navigation
     loadUserRating().catch(err => console.error('loadUserRating error:', err));
 
     // 2. Listen to aggregate average from Firestore (read-only)
-    const ratingDoc = db.collection('bookRatings').doc(book.id);
-    const unsubscribe = ratingDoc.onSnapshot((doc) => {
+    const ratingDoc = doc(db, 'bookRatings', book.id);
+    const unsubscribe = onSnapshot(ratingDoc, (docSnap) => {
       if (!isMounted) return;
-      if (doc.exists) {
-        const data = doc.data();
+      if (docSnap.exists) {
+        const data = docSnap.data();
         const count = data?.ratingCount ?? 0;
         const total = data?.totalRating ?? 0;
         setRatingCount(count);
@@ -324,8 +343,8 @@ const BookDetailsScreen: React.FC<BookDetailsScreenProps> = ({ route, navigation
       setUserRating(stars);
 
       // 3. Update Firestore aggregate using RTDB previousStars (deduplication safe)
-      const ratingDocRef = db.collection('bookRatings').doc(book.id);
-      await db.runTransaction(async (transaction) => {
+      const ratingDocRef = doc(db, 'bookRatings', book.id);
+      await runTransaction(db, async (transaction) => {
         const ratingSnap = await transaction.get(ratingDocRef);
 
         if (ratingSnap.exists) {
@@ -367,7 +386,7 @@ const BookDetailsScreen: React.FC<BookDetailsScreenProps> = ({ route, navigation
   const handleRegister = async () => {
     try {
       const deviceInformation = await deviceInfo();
-      const userDoc = await db.collection('Users').add({
+      const userDoc = await addDoc(collection(db, 'Users'), {
         name,
         gender,
         deviceInformation,
@@ -387,11 +406,11 @@ const BookDetailsScreen: React.FC<BookDetailsScreenProps> = ({ route, navigation
       const userData = await getStoreUserInfo();
       if (!userData?.id) return;
 
-      await db.collection('activityLogs').add({
+      await addDoc(collection(db, 'activityLogs'), {
         user: userData.id,
         action,
         book: book.id,
-        timestamp: firestore.FieldValue.serverTimestamp(),
+        timestamp: serverTimestamp(),
       });
     } catch (error) {
       console.error('Activity log error:', error);
@@ -447,6 +466,88 @@ const BookDetailsScreen: React.FC<BookDetailsScreenProps> = ({ route, navigation
       >
         <Icon icon={IconKey.back} size={IconsSize.normal} className={{ color: '#7B5EC9' }} />
       </TouchableOpacity>
+
+      {/* Reader Settings Button — only for HTML books */}
+      {book.premium_type === 'html' && (
+        <TouchableOpacity
+          style={styles.settingsButton}
+          onPress={() => setReaderSettingsVisible(true)}
+          activeOpacity={0.8}
+        >
+          <Icon icon={IconKey.setting} size={IconsSize.normal} className={{ color: '#7B5EC9' }} />
+        </TouchableOpacity>
+      )}
+
+      {/* Reader Settings Modal */}
+      <Modal
+        visible={readerSettingsVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setReaderSettingsVisible(false)}
+      >
+        <TouchableOpacity
+          style={readerStyles.backdrop}
+          activeOpacity={1}
+          onPress={() => setReaderSettingsVisible(false)}
+        >
+          <View style={readerStyles.sheet}>
+            <View style={readerStyles.handle} />
+            <Text style={readerStyles.title}>Reader Settings</Text>
+            <Text style={readerStyles.subtitle}>ကြိုက်နှစ်သက်ရာ Reader ကို ရွေးချယ်ပါ</Text>
+
+            {/* HTML Reader card */}
+            <TouchableOpacity
+              style={[readerStyles.card, readerMode === 'design' && readerStyles.cardActive]}
+              onPress={() => saveReaderMode('design')}
+              activeOpacity={0.85}
+            >
+              <View style={readerStyles.cardHeader}>
+                <Text style={readerStyles.cardIcon}>🎨</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={readerStyles.cardTitle}>HTML Reader</Text>
+                  <Text style={readerStyles.cardBadge}>Default</Text>
+                </View>
+                {readerMode === 'design' && <Text style={readerStyles.check}>✓</Text>}
+              </View>
+              <Text style={readerStyles.cardDesc}>
+                စာအုပ်၏ မူရင်း Layout၊ Table၊ Image နှင့် Styling များကို အပြည့်အဝ ပြသသည်။ Format ရှုပ်ထွေးသော စာအုပ်များအတွက် အသင့်တော်ဆုံးဖြစ်သည်။
+              </Text>
+              <Text style={readerStyles.cardDescEn}>
+                Renders full HTML layout with original formatting, tables, images, and styles. Best for richly formatted books.
+              </Text>
+            </TouchableOpacity>
+
+            {/* Native Reader card */}
+            <TouchableOpacity
+              style={[readerStyles.card, readerMode === 'performance' && readerStyles.cardActive]}
+              onPress={() => saveReaderMode('performance')}
+              activeOpacity={0.85}
+            >
+              <View style={readerStyles.cardHeader}>
+                <Text style={readerStyles.cardIcon}>⚡</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={readerStyles.cardTitle}>Native Reader</Text>
+                  <Text style={readerStyles.cardBadgePerf}>Fast</Text>
+                </View>
+                {readerMode === 'performance' && <Text style={readerStyles.check}>✓</Text>}
+              </View>
+              <Text style={readerStyles.cardDesc}>
+                မြန်ဆန်ချောမွေ့သော Native Rendering ဖြင့် ဖတ်ရှုနိုင်သည်။ Theme၊ Dark Mode နှင့် Font ချိန်ညှိမှုများ ထောက်ပံ့သည်။ စာများများပါသော စာအုပ်များအတွက် အကောင်းဆုံးဖြစ်သည်။
+              </Text>
+              <Text style={readerStyles.cardDescEn}>
+                Smooth and fast native rendering with theme support, dark mode, and custom fonts. Best for text-heavy books.
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={readerStyles.doneBtn}
+              onPress={() => setReaderSettingsVisible(false)}
+            >
+              <Text style={readerStyles.doneBtnText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* <GradientHeader /> */}
       <BannerAd ref={bannerRef} unitId={adUnitId} size={BannerAdSize.LEADERBOARD} />
@@ -527,6 +628,53 @@ const BookDetailsScreen: React.FC<BookDetailsScreenProps> = ({ route, navigation
   );
 };
 
+const readerStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  handle: {
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: '#e0e0e0', alignSelf: 'center', marginBottom: 20,
+  },
+  title: { fontSize: 20, fontWeight: '800', color: '#1a1a2e', marginBottom: 4 },
+  subtitle: { fontSize: 13, color: '#888', marginBottom: 20 },
+  card: {
+    borderWidth: 2, borderColor: '#f0f0f0', borderRadius: 16,
+    padding: 16, marginBottom: 12, backgroundColor: '#fafafa',
+  },
+  cardActive: { borderColor: '#7B5EC9', backgroundColor: '#f5f0ff' },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 10 },
+  cardIcon: { fontSize: 28 },
+  cardTitle: { fontSize: 16, fontWeight: '700', color: '#1a1a2e' },
+  cardBadge: {
+    fontSize: 10, fontWeight: '700', color: '#22B4D3',
+    backgroundColor: '#e8f8fc', paddingHorizontal: 6, paddingVertical: 2,
+    borderRadius: 6, alignSelf: 'flex-start', marginTop: 2,
+  },
+  cardBadgePerf: {
+    fontSize: 10, fontWeight: '700', color: '#7B5EC9',
+    backgroundColor: '#f0ebff', paddingHorizontal: 6, paddingVertical: 2,
+    borderRadius: 6, alignSelf: 'flex-start', marginTop: 2,
+  },
+  check: { fontSize: 20, color: '#7B5EC9', fontWeight: '800' },
+  cardDesc: { fontSize: 13, color: '#555', lineHeight: 20, marginBottom: 4 },
+  cardDescEn: { fontSize: 12, color: '#999', lineHeight: 18 },
+  doneBtn: {
+    marginTop: 8, backgroundColor: '#7B5EC9', borderRadius: 30,
+    paddingVertical: 14, alignItems: 'center',
+  },
+  doneBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+});
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -536,6 +684,20 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 100,
     left: 16,
+    zIndex: 10,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  settingsButton: {
+    position: 'absolute',
+    top: 100,
+    right: 16,
     zIndex: 10,
     backgroundColor: '#fff',
     borderRadius: 20,

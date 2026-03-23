@@ -109,13 +109,13 @@ const Dashboard: React.FC<DashboardScreenProps> = (props) => {
     );
 
   const renderBook        = makeRenderBook();
-  const renderShortNote   = makeRenderBook('comingSoon', false, true);
-  const renderComingSoon  = makeRenderBook('shortNote', true, false);
+  const renderShortNote   = makeRenderBook('shortNote', false, true);
+  const renderComingSoon  = makeRenderBook('comingSoon', true, false);
 
   const RenderCategory: ListRenderItem<string> = ({ item }) => (
     <TouchableOpacity onPress={()=>props.navigation.navigate(MainNav.Books,{
       //@ts-ignore
-      screen: MainNav.Books,
+      screen: MainNav.BookList,
       params: {  category:item }}
       )} style={styles.categoryPill}>
       <CategoryIcon categoryName={item} color={GradientColor[1]} size={60}/>
@@ -357,11 +357,15 @@ const styles = StyleSheet.create({
   },
   bookList: {
     paddingLeft: 16,
-    marginBottom: 20,
+    paddingRight: 16,
+    paddingBottom: 8,
+    marginBottom: 10,
   },
   bookCard: {
-    width: 100, // Slightly smaller book cards for a denser list
+    width: 100,
     marginRight: 15,
+    paddingBottom: 12,
+    paddingHorizontal: 4,
   },
   bookCover: {
     width: 100,

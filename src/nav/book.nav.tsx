@@ -21,7 +21,7 @@ const BookStack = createNativeStackNavigator<RootStackParamList>();
 export default function BookRoute() {
   return (
     <BookStack.Navigator>
-      <BookStack.Screen name={MainNav.Books} component={BookListScreen} options={{headerShown:false}}  />
+      <BookStack.Screen name={MainNav.BookList} component={BookListScreen} options={{headerShown:false}}  />
       <BookStack.Screen name={MainNav.BookDeatils} component={BookDetailsScreen} options={{headerShown:false}}   />
     </BookStack.Navigator>
 
