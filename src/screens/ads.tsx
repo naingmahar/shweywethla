@@ -17,6 +17,7 @@ import mobileAds, {
   TestIds 
 } from 'react-native-google-mobile-ads';
 import LinearGradient from 'react-native-linear-gradient';
+import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 
 import { FlexContainer } from "../componet/atoms/container/FlexContainer";
 import { MainNav, RootStackParamList } from "../nav/main.nav";
@@ -81,9 +82,15 @@ const rewarded = RewardedAd.createForAdRequest(adUnitId, {
   requestNonPersonalizedAdsOnly: false,
 });
 
+type AdScreenStatus = 'loading' | 'failed' | 'offline' | 'downloading';
+
+// isInternetReachable is null while unknown, so only treat an explicit false as offline
+const isOffline = (net: NetInfoState) =>
+  net.isConnected === false || net.isInternetReachable === false;
+
 export const ADS = (props: IProps) => {
   const [loaded, setLoaded] = useState(false);
-  const [status, setStatus] = useState<'loading' | 'failed' | 'downloading'>('loading');
+  const [status, setStatus] = useState<AdScreenStatus>('loading');
   const downloading = status === 'downloading';
   const book = props.route.params;
 
@@ -91,6 +98,12 @@ export const ADS = (props: IProps) => {
   const loadedRef = useRef(false);
   const adEarnedRef = useRef(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const statusRef = useRef<AdScreenStatus>('loading');
+
+  const updateStatus = (next: AdScreenStatus) => {
+    statusRef.current = next;
+    setStatus(next);
+  };
 
   // Animation logic
   useEffect(() => {
@@ -116,7 +129,7 @@ export const ADS = (props: IProps) => {
 
   const handleTransitionToDownload = () => {
     clearAdTimeout();
-    setStatus('downloading');
+    updateStatus('downloading');
     downloadFile(book).then((downloadedBook) => {
       if (downloadedBook) {
         props.navigation.popToTop();
@@ -132,19 +145,27 @@ export const ADS = (props: IProps) => {
     }
   };
 
-  // Request a rewarded ad; on mount and when the user taps "Watch Ad" again
-  const startAdRequest = () => {
+  // Request a rewarded ad; on mount, on "Watch Ad" / "Try Again", and when the connection returns
+  const startAdRequest = async () => {
+    clearAdTimeout();
     loadedRef.current = false;
     setLoaded(false);
-    setStatus('loading');
+    updateStatus('loading');
+
+    // User may have turned off mobile data / Wi-Fi before opening the ad
+    const net = await NetInfo.fetch();
+    if (isOffline(net)) {
+      updateStatus('offline');
+      return;
+    }
+
     rewarded.load();
 
     // 1-minute timeout: if ad hasn't loaded after 60s, show the failure guidance
-    clearAdTimeout();
     timeoutRef.current = setTimeout(() => {
-      if (!loadedRef.current) {
+      if (!loadedRef.current && statusRef.current === 'loading') {
         console.log('Ad load timeout (60s) — showing failure guidance');
-        setStatus('failed');
+        updateStatus('failed');
       }
     }, 60000);
   };
@@ -157,10 +178,14 @@ export const ADS = (props: IProps) => {
     });
 
     const unsubscribeError = rewarded.addAdEventListener(AdEventType.ERROR, (error) => {
-      // Usually Mytel blocking Google ad servers; let the user retry with a VPN or read now
+      // No internet → ask to reconnect; otherwise usually Mytel blocking Google ad servers
       console.log('Rewarded ad failed', error);
       clearAdTimeout();
-      setStatus((current) => (current === 'downloading' ? current : 'failed'));
+      NetInfo.fetch().then((net) => {
+        if (statusRef.current !== 'downloading') {
+          updateStatus(isOffline(net) ? 'offline' : 'failed');
+        }
+      });
     });
 
     const unsubscribeEarned = rewarded.addAdEventListener(RewardedAdEventType.EARNED_REWARD, (reward) => {
@@ -184,10 +209,24 @@ export const ADS = (props: IProps) => {
       }
     });
 
+    // Connection dropped → show the offline panel; connection back → request the ad again
+    const unsubscribeNetInfo = NetInfo.addEventListener((net) => {
+      const current = statusRef.current;
+      if (isOffline(net)) {
+        if (current === 'loading' || current === 'failed') {
+          clearAdTimeout();
+          updateStatus('offline');
+        }
+      } else if (net.isConnected && current === 'offline') {
+        startAdRequest();
+      }
+    });
+
     startAdRequest();
 
     return () => {
       clearAdTimeout();
+      unsubscribeNetInfo();
       unsubscribeLoaded();
       unsubscribeEarned();
       unsubscribAdClose();
@@ -230,7 +269,32 @@ export const ADS = (props: IProps) => {
           </LinearGradient>
         </Animated.View>
 
-        {status === 'failed' ? (
+        {status === 'offline' ? (
+          <View style={styles.textContainer}>
+            <EsSmallHeader color={ESColor.gray} style={styles.statusText}>
+              အင်တာနက် ချိတ်ဆက်မှု မရှိပါ
+            </EsSmallHeader>
+
+            <EsSmallHeader style={[styles.subText, styles.mutedText]}>
+              Mobile Data (သို့) Wi-Fi ကို ဖွင့်ပြီး 'Try Again' ကို နှိပ်ပါ။
+            </EsSmallHeader>
+
+            <EsSmallHeader style={[styles.subText, styles.mutedText, styles.failureEnglish]}>
+              No internet connection. Please turn on mobile data or Wi-Fi and tap 'Try Again'.
+            </EsSmallHeader>
+
+            <TouchableOpacity style={styles.buttonTouch} onPress={startAdRequest}>
+              <LinearGradient
+                colors={['#7B5EC9', '#22B4D3']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.primaryButton}
+              >
+                <EsSmallHeader color={ESColor.textWhite} style={styles.buttonText}>Try Again</EsSmallHeader>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        ) : status === 'failed' ? (
           <View style={styles.textContainer}>
             <EsSmallHeader color={ESColor.gray} style={styles.statusText}>
               ကြော်ငြာ ဖွင့်၍မရပါ
