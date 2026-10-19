@@ -83,12 +83,14 @@ const rewarded = RewardedAd.createForAdRequest(adUnitId, {
 
 export const ADS = (props: IProps) => {
   const [loaded, setLoaded] = useState(false);
-  const [downloading, setDownloading] = useState(false);
-  const [adEarned, setAdEarned] = useState(false);
+  const [status, setStatus] = useState<'loading' | 'failed' | 'downloading'>('loading');
+  const downloading = status === 'downloading';
   const book = props.route.params;
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const loadedRef = useRef(false);
+  const adEarnedRef = useRef(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Animation logic
   useEffect(() => {
@@ -113,7 +115,8 @@ export const ADS = (props: IProps) => {
   }, []);
 
   const handleTransitionToDownload = () => {
-    setDownloading(true);
+    clearAdTimeout();
+    setStatus('downloading');
     downloadFile(book).then((downloadedBook) => {
       if (downloadedBook) {
         props.navigation.popToTop();
@@ -122,24 +125,51 @@ export const ADS = (props: IProps) => {
     });
   };
 
+  const clearAdTimeout = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  };
+
+  // Request a rewarded ad; on mount and when the user taps "Watch Ad" again
+  const startAdRequest = () => {
+    loadedRef.current = false;
+    setLoaded(false);
+    setStatus('loading');
+    rewarded.load();
+
+    // 1-minute timeout: if ad hasn't loaded after 60s, show the failure guidance
+    clearAdTimeout();
+    timeoutRef.current = setTimeout(() => {
+      if (!loadedRef.current) {
+        console.log('Ad load timeout (60s) — showing failure guidance');
+        setStatus('failed');
+      }
+    }, 60000);
+  };
+
   useEffect(() => {
     const unsubscribeLoaded = rewarded.addAdEventListener(RewardedAdEventType.LOADED, () => {
       loadedRef.current = true;
+      clearAdTimeout();
       setLoaded(true);
     });
 
-    const unsubscribeError = rewarded.addAdEventListener(AdEventType.ERROR, () => {
-      // If ad fails to load, we allow download so user isn't punished for tech errors
-      handleTransitionToDownload();
+    const unsubscribeError = rewarded.addAdEventListener(AdEventType.ERROR, (error) => {
+      // Usually Mytel blocking Google ad servers; let the user retry with a VPN or read now
+      console.log('Rewarded ad failed', error);
+      clearAdTimeout();
+      setStatus((current) => (current === 'downloading' ? current : 'failed'));
     });
 
     const unsubscribeEarned = rewarded.addAdEventListener(RewardedAdEventType.EARNED_REWARD, (reward) => {
         console.log('User earned reward', reward);
-        setAdEarned(true); // Mark that they successfully finished
+        adEarnedRef.current = true; // Mark that they successfully finished
     });
 
     const unsubscribAdClose = rewarded.addAdEventListener(AdEventType.CLOSED, () => {
-      if (adEarned) {
+      if (adEarnedRef.current) {
         // Only download if they finished the ad
         setRecordAdWatch().finally(() => {
           handleTransitionToDownload();
@@ -154,24 +184,18 @@ export const ADS = (props: IProps) => {
       }
     });
 
-    rewarded.load();
-
-    // 1-minute timeout: if ad hasn't loaded after 60s, skip to book page
-    const timeoutId = setTimeout(() => {
-      if (!loadedRef.current) {
-        console.log('Ad load timeout (60s) — skipping to book page');
-        handleTransitionToDownload();
-      }
-    }, 60000);
+    startAdRequest();
 
     return () => {
-      clearTimeout(timeoutId);
+      clearAdTimeout();
       unsubscribeLoaded();
       unsubscribeEarned();
       unsubscribAdClose();
       unsubscribeError();
     };
-  }, [adEarned]); // Listen to adEarned state change
+    // Register listeners and request the first ad once, on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Show ad once loaded
   useEffect(() => {
@@ -206,21 +230,55 @@ export const ADS = (props: IProps) => {
           </LinearGradient>
         </Animated.View>
 
-        <View style={styles.textContainer}>
-          <ActivityIndicator 
-            size="small" 
-            color="#7B5EC9" 
-            style={{ marginBottom: 15 }} 
-          />
-          
-          <EsSmallHeader color={ESColor.gray} style={styles.statusText}>
-            {downloading ? "စာအုပ်ကို သိမ်းဆည်းနေပါသည်..." : "ကြော်ငြာကို ရှာဖွေနေပါသည်..."}
-          </EsSmallHeader>
-          
-          <EsSmallHeader color="#A0A0A0" style={styles.subText}>
-            {downloading ? "ခေတ္တစောင့်ဆိုင်းပေးပါ" : "အသိပညာသည် အကြီးမားဆုံး ရင်းနှီးမြှုပ်နှံမှုဖြစ်သည်"}
-          </EsSmallHeader>
-        </View>
+        {status === 'failed' ? (
+          <View style={styles.textContainer}>
+            <EsSmallHeader color={ESColor.gray} style={styles.statusText}>
+              ကြော်ငြာ ဖွင့်၍မရပါ
+            </EsSmallHeader>
+
+            <EsSmallHeader style={[styles.subText, styles.mutedText]}>
+              Mytel သုံးနေပါက (သို့) အင်တာနက် ချိတ်ဆက်မှု အခက်အခဲရှိပါက VPN ဖွင့်ပြီး 'Watch Ad' ကို ထပ်နှိပ်ပါ။
+            </EsSmallHeader>
+
+            <EsSmallHeader style={[styles.subText, styles.mutedText, styles.failureEnglish]}>
+              Ad failed to load. If you are using Mytel or experiencing connection issues, please turn on a VPN and tap 'Watch Ad' again.
+            </EsSmallHeader>
+
+            <TouchableOpacity style={styles.buttonTouch} onPress={startAdRequest}>
+              <LinearGradient
+                colors={['#7B5EC9', '#22B4D3']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.primaryButton}
+              >
+                <EsSmallHeader color={ESColor.textWhite} style={styles.buttonText}>Watch Ad</EsSmallHeader>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.buttonTouch, styles.secondaryButton]}
+              onPress={handleTransitionToDownload}
+            >
+              <EsSmallHeader style={[styles.buttonText, styles.secondaryButtonText]}>Read Now</EsSmallHeader>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.textContainer}>
+            <ActivityIndicator
+              size="small"
+              color="#7B5EC9"
+              style={{ marginBottom: 15 }}
+            />
+
+            <EsSmallHeader color={ESColor.gray} style={styles.statusText}>
+              {downloading ? "စာအုပ်ကို သိမ်းဆည်းနေပါသည်..." : "ကြော်ငြာကို ရှာဖွေနေပါသည်..."}
+            </EsSmallHeader>
+
+            <EsSmallHeader color="#A0A0A0" style={styles.subText}>
+              {downloading ? "ခေတ္တစောင့်ဆိုင်းပေးပါ" : "အသိပညာသည် အကြီးမားဆုံး ရင်းနှီးမြှုပ်နှံမှုဖြစ်သည်"}
+            </EsSmallHeader>
+          </View>
+        )}
       </View>
     </FlexContainer>
   );
@@ -274,5 +332,36 @@ const styles = StyleSheet.create({
   subText: {
     textAlign: 'center',
     fontSize: 14,
+  },
+  mutedText: {
+    color: '#A0A0A0',
+  },
+  failureEnglish: {
+    marginTop: 8,
+    fontSize: 12,
+  },
+  buttonTouch: {
+    width: 220,
+    marginTop: 16,
+    borderRadius: 25,
+  },
+  primaryButton: {
+    paddingVertical: 12,
+    borderRadius: 25,
+    alignItems: 'center',
+  },
+  secondaryButton: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#7B5EC9',
+    backgroundColor: '#fff',
+  },
+  buttonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  secondaryButtonText: {
+    color: '#7B5EC9',
   }
 });
